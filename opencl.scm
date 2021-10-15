@@ -439,29 +439,23 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
      "clCreateBuffer" 'buffer-create)
     (finalizer mem)))
 
-(define (enqueue-buffer-write cq buffer src #!key (blocking? #t) (offset 0))
+(define (enqueue-buffer-write cq buffer src #!key (offset 0))
   (status-check
    ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
-                          (scheme-pointer src) (size_t offset) (size_t size)
-                          (bool blocking))
-                     "return(clEnqueueWriteBuffer(*cq, *buffer, blocking ? CL_TRUE : CL_FALSE, offset, size, src, 0, NULL, NULL));")
-    cq buffer src offset
-    (number-of-bytes src)
-    blocking?)))
+                          (scheme-pointer src) (size_t offset) (size_t size))
+                     "return(clEnqueueWriteBuffer(*cq, *buffer, CL_TRUE, offset, size, src, 0, NULL, NULL));")
+    cq buffer src offset (number-of-bytes src))))
 
-(define (enqueue-buffer-read cq buffer #!key (dst #f) (blocking? #t) (offset 0) (size #f))
+(define (enqueue-buffer-read cq buffer #!key (dst #f) (offset 0) (size #f))
   (let* ((size (or size (if dst
                             (min (mem-size buffer) (srfi4-vector-bytes dst))
                             (mem-size buffer))))
          (dst  (or dst  (make-blob size)))) ;; TODO: clear
    (status-check
     ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
-                           (scheme-pointer dst) (size_t offset) (size_t size)
-                           (bool blocking))
-                      "return(clEnqueueReadBuffer(*cq, *buffer, blocking ? CL_TRUE : CL_FALSE, offset, size, dst, 0, NULL, NULL));")
-     cq buffer dst offset
-     (number-of-bytes dst)
-     blocking?))
+                           (scheme-pointer dst) (size_t offset) (size_t size))
+                      "return(clEnqueueReadBuffer(*cq, *buffer, CL_TRUE, offset, size, dst, 0, NULL, NULL));")
+     cq buffer dst offset (number-of-bytes dst)))
    dst))
 
 ;; ==================== program ====================
