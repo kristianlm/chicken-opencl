@@ -439,14 +439,14 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
      "clCreateBuffer" 'buffer-create)
     (finalizer mem)))
 
-(define (enqueue-buffer-write cq buffer src #!key (offset 0))
+(define (buffer-write buffer cq src #!key (offset 0))
   (status-check
    ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
                           (scheme-pointer src) (size_t offset) (size_t size))
                      "return(clEnqueueWriteBuffer(*cq, *buffer, CL_TRUE, offset, size, src, 0, NULL, NULL));")
     cq buffer src offset (number-of-bytes src))))
 
-(define (enqueue-buffer-read cq buffer #!key (dst #f) (offset 0) (size #f))
+(define (buffer-read buffer cq #!key (dst #f) (offset 0) (size #f))
   (let* ((size (or size (if dst
                             (min (mem-size buffer) (srfi4-vector-bytes dst))
                             (mem-size buffer))))
