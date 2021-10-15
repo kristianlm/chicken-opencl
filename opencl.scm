@@ -375,11 +375,6 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (lambda (x) (location (cl_mem-blob x)))
   (lambda (x) (error "internal error: cannot return cl_mem by value")))
 
-(define (mem-release! mem)
-  (print "RELEASEING " mem)
-  (status-check ((foreign-lambda* int ((cl_mem mem)) "return(clReleaseMemObject(*mem));") mem)
-                "clReleaseMem" 'mem-release!))
-
 (define-foreign-type cl_mem_info int)
 
 (define (mem-type/int->symbol type)
@@ -425,6 +420,11 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 ;; size in bytes
 (define (srfi4-vector-bytes v)
   (u8vector-length v))
+
+(define (mem-release! mem)
+  (print "RELEASEING " mem)
+  (status-check ((foreign-lambda* int ((cl_mem mem)) "return(clReleaseMemObject(*mem));") mem)
+                "clReleaseMem" 'mem-release!))
 
 (define (buffer-create context flags source/size #!key (finalizer (lambda (x) (set-finalizer! x mem-release!))))
   (let* ((size (if (number? source/size) source/size
