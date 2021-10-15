@@ -493,14 +493,41 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
      "clCreateProgramWithSource" 'program-create)
     (finalizer program)))
 
+(define-foreign-type cl_program_build_info int)
+
+(define (program-build-info/string name)
+  (lambda (program device)
+    ;;                               ,-- should be overwritten
+    (let-location ((status int (foreign-value "CL_INVALID_VALUE" int)))
+      (let ((value ((foreign-lambda* c-string* ((cl_program program)
+                                                (cl_device_id device)
+                                                (cl_program_build_info name)
+                                                ((c-pointer int) status))
+                                     "size_t value_size = 0;"
+                                     "clGetProgramBuildInfo(*program, *device, name, 0, NULL, &value_size);"
+                                     "char *dest = malloc(value_size);"
+                                     "*status = clGetProgramBuildInfo(*program, *device, name, value_size, dest, NULL);"
+                                     "return(dest); // <-- freed by c-string* foreign type")
+                    program device name (location status))))
+        (status-check status (conc "clGetPlatformInfo name=" name) 'program-build-info/string)
+        value))))
+
+(define program-build-log (program-build-info/string (foreign-value "CL_PROGRAM_BUILD_LOG" int)))
+(define program-build-options (program-build-info/string (foreign-value "CL_PROGRAM_BUILD_OPTIONS" int)))
+
 (define (program-build program devices)
   (if (pair? devices) (error "TODO: support multiple devices"))
-  (let ((device devices))
-    (status-check
-     ((foreign-lambda* int ((cl_program program) (u8vector devices))
-                       "return(clBuildProgram(*program, 1, (cl_device_id*)devices, NULL, NULL, NULL));")
-      program (device-blob device))
-     "clBuildProgram" 'program-build)))
+  (let* ((device devices)
+         (status ((foreign-lambda* int ((cl_program program) (u8vector devices))
+                                   "return(clBuildProgram(*program, 1, (cl_device_id*)devices, NULL, NULL, NULL));")
+                  program (cl_device-blob device))))
+
+    (if (= status (foreign-value "CL_BUILD_PROGRAM_FAILURE" int))
+        (error (conc "program-build: build-program-failure\n"
+                     (program-build-log program device))))
+    (status-check status "clBuildProgram" 'program-build)
+    program))
+
 
 ;; ==================== kernel ====================
 
