@@ -470,7 +470,6 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
   (lambda (x) (location (cl_program-blob x)))
   (lambda (x) (error "internal error: cannot return cl_program by value")))
 
-
 (define (program-release! program)
   (print "RELEASEING " program)
   (status-check ((foreign-lambda* int ((cl_program program)) "return(clReleaseProgram(*program));") program)
