@@ -561,28 +561,33 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
     kernel idx (foreign-value "sizeof(cl_mem)" int) value)
    "clSetKernelArg" 'kernel-arg))
 
+(define (kernel-enqueue kernel cq global-work-sizes #!key global-work-offsets local-work-sizes)
 
-;; cl_int clEnqueueNDRangeKernel (	cl_command_queue command_queue,
-;;  	cl_kernel kernel,
-;;  	cl_uint work_dim,
-;;  	const size_t *global_work_offset,
-;;  	const size_t *global_work_size,
-;;  	const size_t *local_work_size,
-;;  	cl_uint num_events_in_wait_list,
-;;  	const cl_event *event_wait_list,
-;;  	cl_event *event)
-(define (kernel-enqueue kernel cq #!key global-work-offsets global-work-sizes local-work-sizes)
-  (unless (= 8 (foreign-value "sizeof(size_t)" int))
-    (error "TODO: implement non-8-byte size_t:" (foreign-value "sizeof(size_t)" int) ))
+  (define (->size_t-vector lst)
+    (cond ((equal? lst #f) #f) ;; NULL is ok
+          ((list? lst)
+           (cond ((= 8 (foreign-value "sizeof(size_t)" int)) (list->u64vector lst))
+                 ((= 4 (foreign-value "sizeof(size_t)" int)) (list->u32vector lst))
+                 (else (error "only 4 or 8 bytes supported for size_t, got:" (foreign-value "sizeof(size_t)" int)))))
+          (error "expecting proper list of dimension, got " lst)))
+
+  (if (and local-work-sizes (not (= (length global-work-sizes)
+                                    (length local-work-sizes))))
+      (error "local-work-sizes dimensions must match global-work-sizes" local-work-sizes))
+
+  (if (and global-work-offsets (not (= (length global-work-sizes)
+                                       (length global-work-offsets))))
+      (error "global-work-offsets dimensions must match global-work-sizes" global-work-sizes))
+
   (status-check
    ((foreign-lambda* int ((cl_command_queue cq) (cl_kernel kernel)
                           (int work_dim) (u64vector gwo) (u64vector gws) (u64vector lws))
                      "return(clEnqueueNDRangeKernel(*cq, *kernel, work_dim, gwo, gws, lws, 0, NULL, NULL));")
     cq kernel
-    (u64vector-length global-work-sizes) ;; dimensions
-    global-work-offsets
-    global-work-sizes
-    local-work-sizes)
+    (length global-work-sizes) ;; dimensions
+    (->size_t-vector global-work-offsets)
+    (->size_t-vector global-work-sizes)
+    (->size_t-vector local-work-sizes))
    "clEnqueueNDRangeKernel" 'kernel-enqueue))
 
 ;; ========================================================================================
