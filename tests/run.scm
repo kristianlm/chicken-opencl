@@ -56,6 +56,7 @@ __kernel void tt(__global ulong *A) {
   (test-group
    "datatype conversion"
 
+   (test "buffer without explicit type" 'blob (buffer-type (buffer-create context 32)))
    (test "buffer by srfi4 vector type" 'f32 (buffer-type (buffer-create context (f32vector 1 2))))
    (test "buffer by srfi4 vector type" 'f64 (buffer-type (buffer-create context (f64vector 1 2))))
    (test "buffer by srfi4 vector type" 'u64 (buffer-type (buffer-create context (u64vector 1 2))))

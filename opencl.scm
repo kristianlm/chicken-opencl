@@ -485,7 +485,8 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 (define (buffer-create context source/size #!key (flags 0) (type #f) (finalizer (lambda (x) (set-finalizer! x mem-release!))))
   (let* ((size (if (number? source/size) source/size
                    (srfi4-vector-bytes source/size)))
-         (type (or type (srfi4-vector-type source/size)))
+         (type (or type (if (number? source/size) 'blob
+                            (srfi4-vector-type source/size))))
          (mem (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type)))
     (status-check
      ((foreign-lambda* int ((cl_context context) (unsigned-long flags) (size_t size) (cl_mem mem))
