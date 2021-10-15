@@ -3,8 +3,7 @@
         chicken.pretty-print
         (only chicken.gc set-finalizer!)
         (only chicken.string conc)
-        (only chicken.blob make-blob)
-        (only chicken.memory.representation number-of-bytes)
+        (only chicken.blob make-blob blob? blob->string blob-size)
         srfi-4
         srfi-1)
 
@@ -363,7 +362,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ==================== buffer ====================
 
-(define-record cl_mem blob)
+(define-record cl_mem blob type)
 (define-record-printer cl_mem
   (lambda (x op)
     (display "#<cl_mem " op)
@@ -413,23 +412,81 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                    mem name (location size)))
     size))
 
-(define (mem-type mem)   (mem-type/int->symbol (mem-info/cl_uint mem (foreign-value "CL_MEM_TYPE" int))))
+;;(define (mem-type mem)   (mem-type/int->symbol (mem-info/cl_uint mem (foreign-value "CL_MEM_TYPE" int))))
+(define mem-type cl_mem-type)
 (define (mem-size mem)   (mem-info/size_t mem (foreign-value "CL_MEM_SIZE" int)))
 (define (mem-offset mem) (mem-info/size_t mem (foreign-value "CL_MEM_OFFSET" int)))
 
 ;; size in bytes
-(define (srfi4-vector-bytes v)
-  (u8vector-length v))
+(define (srfi4-vector-bytes x)
+  (cond ((blob? x) (blob-size x))
+        (( u8vector? x) (* 1 ( u8vector-length x)))
+        (( s8vector? x) (* 1 ( s8vector-length x)))
+        ((u16vector? x) (* 2 (u16vector-length x)))
+        ((s16vector? x) (* 2 (s16vector-length x)))
+        ((u32vector? x) (* 4 (u32vector-length x)))
+        ((s32vector? x) (* 4 (s32vector-length x)))
+        ((u64vector? x) (* 8 (u64vector-length x)))
+        ((s64vector? x) (* 8 (s64vector-length x)))
+        ((f32vector? x) (* 4 (f32vector-length x)))
+        ((f64vector? x) (* 8 (f64vector-length x)))
+        (else (error "cannot determine object size" x))))
+
+(define (srfi4-vector-blob x) ;; any type that works with the foreign type scheme-pointer
+  (cond ((blob? x) x)
+        (( u8vector? x) ( u8vector->blob/shared x))
+        (( s8vector? x) ( s8vector->blob/shared x))
+        ((u16vector? x) (u16vector->blob/shared x))
+        ((s16vector? x) (s16vector->blob/shared x))
+        ((u32vector? x) (u32vector->blob/shared x))
+        ((s32vector? x) (s32vector->blob/shared x))
+        ((u64vector? x) (u64vector->blob/shared x))
+        ((s64vector? x) (s64vector->blob/shared x))
+        ((f32vector? x) (f32vector->blob/shared x))
+        ((f64vector? x) (f64vector->blob/shared x))
+        (else (error "cannot get blob from" x))))
+
+(define (srfi4-vector-type x)
+  (cond ((blob? x) 'blob)
+        (( u8vector? x) 'u8)
+        (( s8vector? x) 's8)
+        ((u16vector? x) 'u16)
+        ((s16vector? x) 's16)
+        ((u32vector? x) 'u32)
+        ((s32vector? x) 's32)
+        ((u64vector? x) 'u64)
+        ((s64vector? x) 's64)
+        ((f32vector? x) 'f32)
+        ((f64vector? x) 'f64)
+        (else (error "unknown type" x))))
+
+;; ((blob->type-converter 'f32) (f32vector->blob/shared (f32vector 1 2)))
+(define (blob->type-converter x) ;; <-- a symbol like 'f32
+  (case x
+    ((blob) (lambda (x) x))
+    (( u8) blob->u8vector/shared)
+    (( s8) blob->s8vector/shared)
+    ((u16) blob->u16vector/shared)
+    ((s16) blob->s16vector/shared)
+    ((u32) blob->u32vector/shared)
+    ((s32) blob->s32vector/shared)
+    ((u64) blob->u64vector/shared)
+    ((s64) blob->s64vector/shared)
+    ((f32) blob->f32vector/shared)
+    ((f64) blob->f64vector/shared)
+    (else (if (procedure? x) x
+              (error "dont know how to convert type" x)))))
 
 (define (mem-release! mem)
   (print "RELEASEING " mem)
   (status-check ((foreign-lambda* int ((cl_mem mem)) "return(clReleaseMemObject(*mem));") mem)
                 "clReleaseMem" 'mem-release!))
 
-(define (buffer-create context flags source/size #!key (finalizer (lambda (x) (set-finalizer! x mem-release!))))
+(define (buffer-create context source/size #!key (flags 0) (type #f) (finalizer (lambda (x) (set-finalizer! x mem-release!))))
   (let* ((size (if (number? source/size) source/size
                    (srfi4-vector-bytes source/size)))
-         (mem (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)))))
+         (type (or type (srfi4-vector-type source/size)))
+         (mem (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type)))
     (status-check
      ((foreign-lambda* int ((cl_context context) (unsigned-long flags) (size_t size) (cl_mem mem))
                        "int status;"
@@ -439,24 +496,30 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
      "clCreateBuffer" 'buffer-create)
     (finalizer mem)))
 
+(define buffer-type
+  (getter-with-setter cl_mem-type
+                      (lambda (mem value) (cl_mem-type-set! mem value))))
+
 (define (buffer-write buffer cq src #!key (offset 0))
   (status-check
    ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
                           (scheme-pointer src) (size_t offset) (size_t size))
                      "return(clEnqueueWriteBuffer(*cq, *buffer, CL_TRUE, offset, size, src, 0, NULL, NULL));")
-    cq buffer src offset (number-of-bytes src))))
+    cq buffer (srfi4-vector-blob src) offset (srfi4-vector-bytes src)))
+  buffer)
 
-(define (buffer-read buffer cq #!key (dst #f) (offset 0) (size #f))
+(define (buffer-read buffer cq #!key (type (buffer-type buffer)) (dst #f) (offset 0) (size #f))
   (let* ((size (or size (if dst
                             (min (mem-size buffer) (srfi4-vector-bytes dst))
                             (mem-size buffer))))
-         (dst  (or dst  (make-blob size)))) ;; TODO: clear
+         (dst  (or dst (make-blob size)))) ;; TODO: clear
    (status-check
     ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
                            (scheme-pointer dst) (size_t offset) (size_t size))
                       "return(clEnqueueReadBuffer(*cq, *buffer, CL_TRUE, offset, size, dst, 0, NULL, NULL));")
-     cq buffer dst offset (number-of-bytes dst)))
-   dst))
+     cq buffer (srfi4-vector-blob dst) offset (srfi4-vector-bytes dst)))
+
+   ((blob->type-converter type) dst)))
 
 ;; ==================== program ====================
 
