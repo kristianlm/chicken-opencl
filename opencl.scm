@@ -591,46 +591,4 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
    "clEnqueueNDRangeKernel" 'kernel-enqueue))
 
 ;; ========================================================================================
-(print "all devices:")
-(pp (map device-info (append-map devices (platforms))))
 
-(define device (car (devices (cadr (platforms)))))
-(print "got device: " device)
-(define context (context-create device))
-(print "got context: " context)
-
-(define cq (command-queue context device))
-(print "cq: " cq)
-
-(define A (buffer-create context 0 (* 8)))
-(print "mem " A)
-
-(enqueue-buffer-write cq A #${1 2 3 4 10 20 30 40})
-(print "enqueued")
-(print "read-back: " (blob->u8vector/shared (enqueue-buffer-read cq A)))
-
-(define program-source "
-__kernel void tst(__global uchar *A) {
-    int index = get_global_id(0);
-    A[index] *= 2;
-}")
-(print "program source: " program-source)
-
-(define program (program-create context program-source))
-(print "program: " program)
-
-(program-build program device)
-
-(define kernel (kernel-create program "tst"))
-(print "kernel: " kernel)
-(kernel-arg-set! kernel 0 A)
-
-(kernel-enqueue kernel cq global-work-sizes: (u64vector 8))
-
-(print "read-back: " (blob->u8vector/shared (enqueue-buffer-read cq A)))
-
-(set! A #f)
-(set! kernel #f)
-(set! program #f)
-(set! cq #f)
-(set! context #f)

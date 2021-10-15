@@ -1,0 +1,12 @@
+;; -*- scheme -*-
+((author "Kristian Lein-Mathisen")
+ (synopsis "Bindings to OpenCL")
+ (version "0.1")
+ (license "BSD")
+ (category math)
+ (dependencies)
+ (test-dependencies test)
+ (components (extension opencl
+                        (source "opencl-module.scm")
+                        (source-dependencies "opencl.scm")
+                        (link-options "-L" "-lOpenCL"))))

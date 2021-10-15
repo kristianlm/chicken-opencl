@@ -1,1 +1,8 @@
 /opencl
+/opencl.build.sh
+/opencl.import.so
+/opencl.import.scm
+/opencl.install.sh
+/opencl.link
+/opencl.so
+/opencl.static.o
