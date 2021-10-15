@@ -37,40 +37,52 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 (define cl-errors
   `(
-    (,(foreign-value "CL_INVALID_VALUE" int) .                   invalid_value)
-    (,(foreign-value "CL_INVALID_DEVICE_TYPE" int) .             invalid_device_type)
-    (,(foreign-value "CL_INVALID_PLATFORM" int) .                invalid_platform)
-    (,(foreign-value "CL_INVALID_DEVICE" int) .                  invalid_device)
-    (,(foreign-value "CL_INVALID_CONTEXT" int) .                 invalid_context)
-    (,(foreign-value "CL_INVALID_QUEUE_PROPERTIES" int) .        invalid_queue_properties)
-    (,(foreign-value "CL_INVALID_COMMAND_QUEUE" int) .           invalid_command_queue)
-    (,(foreign-value "CL_INVALID_HOST_PTR" int) .                invalid_host_ptr)
-    (,(foreign-value "CL_INVALID_MEM_OBJECT" int) .              invalid_mem_object)
-    (,(foreign-value "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR" int) . invalid_image_format_descriptor)
-    (,(foreign-value "CL_INVALID_IMAGE_SIZE" int) .              invalid_image_size)
-    (,(foreign-value "CL_INVALID_SAMPLER" int) .                 invalid_sampler)
-    (,(foreign-value "CL_INVALID_BINARY" int) .                  invalid_binary)
-    (,(foreign-value "CL_INVALID_BUILD_OPTIONS" int) .           invalid_build_options)
-    (,(foreign-value "CL_INVALID_PROGRAM" int) .                 invalid_program)
-    (,(foreign-value "CL_INVALID_PROGRAM_EXECUTABLE" int) .      invalid_program_executable)
-    (,(foreign-value "CL_INVALID_KERNEL_NAME" int) .             invalid_kernel_name)
-    (,(foreign-value "CL_INVALID_KERNEL_DEFINITION" int) .       invalid_kernel_definition)
-    (,(foreign-value "CL_INVALID_KERNEL" int) .                  invalid_kernel)
-    (,(foreign-value "CL_INVALID_ARG_INDEX" int) .               invalid_arg_index)
-    (,(foreign-value "CL_INVALID_ARG_VALUE" int) .               invalid_arg_value)
-    (,(foreign-value "CL_INVALID_ARG_SIZE" int) .                invalid_arg_size)
-    (,(foreign-value "CL_INVALID_KERNEL_ARGS" int) .             invalid_kernel_args)
-    (,(foreign-value "CL_INVALID_WORK_DIMENSION" int) .          invalid_work_dimension)
-    (,(foreign-value "CL_INVALID_WORK_GROUP_SIZE" int) .         invalid_work_group_size)
-    (,(foreign-value "CL_INVALID_WORK_ITEM_SIZE" int) .          invalid_work_item_size)
-    (,(foreign-value "CL_INVALID_GLOBAL_OFFSET" int) .           invalid_global_offset)
-    (,(foreign-value "CL_INVALID_EVENT_WAIT_LIST" int) .         invalid_event_wait_list)
-    (,(foreign-value "CL_INVALID_EVENT" int) .                   invalid_event)
-    (,(foreign-value "CL_INVALID_OPERATION" int) .               invalid_operation)
-    (,(foreign-value "CL_INVALID_GL_OBJECT" int) .               invalid_gl_object)
-    (,(foreign-value "CL_INVALID_BUFFER_SIZE" int) .             invalid_buffer_size)
-    (,(foreign-value "CL_INVALID_MIP_LEVEL" int) .               invalid_mip_level)
-    (,(foreign-value "CL_INVALID_GLOBAL_WORK_SIZE" int) .        invalid_global_work_size)
+    (,(foreign-value "CL_BUILD_PROGRAM_FAILURE" int) .           build-program-failure)
+    (,(foreign-value "CL_COMPILER_NOT_AVAILABLE" int) .          compiler-not-available)
+    (,(foreign-value "CL_DEVICE_NOT_AVAILABLE" int) .            device-not-available)
+    (,(foreign-value "CL_DEVICE_NOT_FOUND" int) .                device-not-found)
+    (,(foreign-value "CL_IMAGE_FORMAT_MISMATCH" int) .           image-format-mismatch)
+    (,(foreign-value "CL_IMAGE_FORMAT_NOT_SUPPORTED" int) .      image-format-not-supported)
+    (,(foreign-value "CL_INVALID_ARG_INDEX" int) .               invalid-arg-index)
+    (,(foreign-value "CL_INVALID_ARG_SIZE" int) .                invalid-arg-size)
+    (,(foreign-value "CL_INVALID_ARG_VALUE" int) .               invalid-arg-value)
+    (,(foreign-value "CL_INVALID_BINARY" int) .                  invalid-binary)
+    (,(foreign-value "CL_INVALID_BUFFER_SIZE" int) .             invalid-buffer-size)
+    (,(foreign-value "CL_INVALID_BUILD_OPTIONS" int) .           invalid-build-options)
+    (,(foreign-value "CL_INVALID_COMMAND_QUEUE" int) .           invalid-command-queue)
+    (,(foreign-value "CL_INVALID_CONTEXT" int) .                 invalid-context)
+    (,(foreign-value "CL_INVALID_DEVICE" int) .                  invalid-device)
+    (,(foreign-value "CL_INVALID_DEVICE_TYPE" int) .             invalid-device-type)
+    (,(foreign-value "CL_INVALID_EVENT" int) .                   invalid-event)
+    (,(foreign-value "CL_INVALID_EVENT_WAIT_LIST" int) .         invalid-event-wait-list)
+    (,(foreign-value "CL_INVALID_GLOBAL_OFFSET" int) .           invalid-global-offset)
+    (,(foreign-value "CL_INVALID_GLOBAL_WORK_SIZE" int) .        invalid-global-work-size)
+    (,(foreign-value "CL_INVALID_GL_OBJECT" int) .               invalid-gl-object)
+    (,(foreign-value "CL_INVALID_HOST_PTR" int) .                invalid-host-ptr)
+    (,(foreign-value "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR" int) . invalid-image-format-descriptor)
+    (,(foreign-value "CL_INVALID_IMAGE_SIZE" int) .              invalid-image-size)
+    (,(foreign-value "CL_INVALID_KERNEL_ARGS" int) .             invalid-kernel-args)
+    (,(foreign-value "CL_INVALID_KERNEL_DEFINITION" int) .       invalid-kernel-definition)
+    (,(foreign-value "CL_INVALID_KERNEL" int) .                  invalid-kernel)
+    (,(foreign-value "CL_INVALID_KERNEL_NAME" int) .             invalid-kernel-name)
+    (,(foreign-value "CL_INVALID_MEM_OBJECT" int) .              invalid-mem-object)
+    (,(foreign-value "CL_INVALID_MIP_LEVEL" int) .               invalid-mip-level)
+    (,(foreign-value "CL_INVALID_OPERATION" int) .               invalid-operation)
+    (,(foreign-value "CL_INVALID_PLATFORM" int) .                invalid-platform)
+    (,(foreign-value "CL_INVALID_PROGRAM_EXECUTABLE" int) .      invalid-program-executable)
+    (,(foreign-value "CL_INVALID_PROGRAM" int) .                 invalid-program)
+    (,(foreign-value "CL_INVALID_QUEUE_PROPERTIES" int) .        invalid-queue-properties)
+    (,(foreign-value "CL_INVALID_SAMPLER" int) .                 invalid-sampler)
+    (,(foreign-value "CL_INVALID_VALUE" int) .                   invalid-value)
+    (,(foreign-value "CL_INVALID_WORK_DIMENSION" int) .          invalid-work-dimension)
+    (,(foreign-value "CL_INVALID_WORK_GROUP_SIZE" int) .         invalid-work-group-size)
+    (,(foreign-value "CL_INVALID_WORK_ITEM_SIZE" int) .          invalid-work-item-size)
+    (,(foreign-value "CL_MAP_FAILURE" int) .                     map-failure)
+    (,(foreign-value "CL_MEM_COPY_OVERLAP" int) .                mem-copy-overlap)
+    (,(foreign-value "CL_MEM_OBJECT_ALLOCATION_FAILURE" int) .   mem-object-allocation-failure)
+    (,(foreign-value "CL_OUT_OF_HOST_MEMORY" int) .              out-of-host_memory)
+    (,(foreign-value "CL_OUT_OF_RESOURCES" int) .                out-of-resources)
+    (,(foreign-value "CL_PROFILING_INFO_NOT_AVAILABLE" int) .    profiling-info-not-available)
     ))
 
 ;; ==================== platforms ====================
@@ -81,14 +93,14 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
  return (num_platforms);
 ")))
 
-(define-record platform blob)
-(define-record-printer platform
+(define-record cl_platform blob)
+(define-record-printer cl_platform
   (lambda (x op)
-    (display "#<platform " op)
+    (display "#<cl_platform " op)
     (write (platform-name x) op)
     (display ">" op)))
 (define-foreign-type cl_platform_id (c-pointer "cl_platform_id")
-  (lambda (x) (location (platform-blob x)))
+  (lambda (x) (location (cl_platform-blob x)))
   (lambda (x) (error "internal error: cannot return cl_platform_id by value")))
 
 (define size_cl_platform_id (foreign-value "sizeof(cl_platform_id *)" int))
@@ -110,7 +122,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
      "clGetPlatformIDs" 'platforms)
 
     ;; go from one big blob into one blob per platform
-    (map make-platform (u8vector-split blob num-platforms size_cl_platform_id))))
+    (map make-cl_platform (u8vector-split blob num-platforms size_cl_platform_id))))
 
 (define-foreign-type cl_platform_info int)
 
@@ -137,17 +149,17 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ============================= devices ====================
 
-(define-record device blob)
-(define-record-printer device
+(define-record cl_device blob)
+(define-record-printer cl_device
   (lambda (x op)
-    (display "#<device " op)
+    (display "#<cl_device " op)
     (write (device-name x) op)
     (display ">" op)))
 (define-foreign-type cl_device_id (c-pointer "cl_device_id")
-  (lambda (x) (location (device-blob x)))
+  (lambda (x) (location (cl_device-blob x)))
   (lambda (x) (error "internal error: cannot return cl_device_id by value")))
 
-(define (devices platform)
+(define (platform-devices platform)
   (define num-devices
     ((foreign-lambda* size_t ((cl_platform_id platform))
                       "cl_uint num_devices = 0;"
@@ -164,7 +176,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
                       "clGetDeviceIDs(*platform, CL_DEVICE_TYPE_ALL, num_devices, (cl_device_id*)blob, 0);"
                       "return(num_devices);")
      platform blob num-devices)
-    (map make-device (u8vector-split blob num-devices size_cl_device_id))))
+    (map make-cl_device (u8vector-split blob num-devices size_cl_device_id))))
 
 (define-foreign-type cl_device_info int)
 
@@ -299,14 +311,9 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ==================== context ====================
 
-(define-record context blob)
-(define-record-printer context
-  (lambda (x op)
-    (display "#<context" op)
-    ;; (write (context-name x) op)
-    (display ">" op)))
+(define-record cl_context blob)
 (define-foreign-type cl_context (c-pointer "cl_context")
-  (lambda (x) (location (context-blob x)))
+  (lambda (x) (location (cl_context-blob x)))
   (lambda (x) (error "internal error: cannot return cl_context by value")))
 
 (define (context-release! context)
@@ -316,9 +323,8 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 (define (context-create devices #!key (finalizer (lambda (x) (set-finalizer! x context-release!))))
   (let ((devices (if (pair? devices) devices (list devices)))) ;; list is optional
-    (let* ((concatenated (list->u8vector (append-map (o u8vector->list device-blob) devices)))
-           (blob (make-u8vector (foreign-value "sizeof(cl_context)" int)))
-           (context (make-context blob)))
+    (let* ((concatenated (list->u8vector (append-map (o u8vector->list cl_device-blob) devices)))
+           (context (make-cl_context (make-u8vector (foreign-value "sizeof(cl_context)" int)))))
       (status-check
        ((foreign-lambda* int ((cl_context context) (u8vector device_list) (size_t num_devices))
                          "int status;"
@@ -332,14 +338,9 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ==================== command queue ====================
 
-(define-record command-queue blob)
-(define-record-printer command-queue
-  (lambda (x op)
-    (display "#<command-queue" op)
-    ;; (write (command-queue-name x) op)
-    (display ">" op)))
+(define-record cl_command_queue blob)
 (define-foreign-type cl_command_queue (c-pointer "cl_command_queue")
-  (lambda (x) (location (command-queue-blob x)))
+  (lambda (x) (location (cl_command_queue-blob x)))
   (lambda (x) (error "internal error: cannot return cl_command_queue by value")))
 
 
@@ -350,7 +351,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 (define (command-queue context device #!key (finalizer (lambda (x) (set-finalizer! x command-queue-release!)))) ;; TODO: properties
   (let* ((blob (make-u8vector (foreign-value "sizeof(cl_command_queue)" int)))
-         (cq (make-command-queue blob)))
+         (cq (make-cl_command_queue blob)))
     (status-check
      ((foreign-lambda* int ((cl_context context) (cl_device_id device) (cl_command_queue cq))
                        "int status;"
@@ -362,16 +363,16 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ==================== buffer ====================
 
-(define-record mem blob)
-(define-record-printer mem
+(define-record cl_mem blob)
+(define-record-printer cl_mem
   (lambda (x op)
-    (display "#<mem " op)
+    (display "#<cl_mem " op)
     (write (mem-type x) op)
     (display " " op)
     (write (mem-size x) op)
     (display ">" op)))
 (define-foreign-type cl_mem (c-pointer "cl_mem")
-  (lambda (x) (location (mem-blob x)))
+  (lambda (x) (location (cl_mem-blob x)))
   (lambda (x) (error "internal error: cannot return cl_mem by value")))
 
 (define (mem-release! mem)
@@ -428,8 +429,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 (define (buffer-create context flags source/size #!key (finalizer (lambda (x) (set-finalizer! x mem-release!))))
   (let* ((size (if (number? source/size) source/size
                    (srfi4-vector-bytes source/size)))
-         (blob (make-u8vector (foreign-value "sizeof(cl_mem)" int)))
-         (mem (make-mem blob)))
+         (mem (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)))))
     (status-check
      ((foreign-lambda* int ((cl_context context) (unsigned-long flags) (size_t size) (cl_mem mem))
                        "int status;"
@@ -466,14 +466,14 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 ;; ==================== program ====================
 
-(define-record program blob)
+(define-record cl_program blob)
 (define-record-printer program
   (lambda (x op)
     (display "#<program" op)
     ;; (write (program-size x) op)
     (display ">" op)))
 (define-foreign-type cl_program (c-pointer "cl_program")
-  (lambda (x) (location (program-blob x)))
+  (lambda (x) (location (cl_program-blob x)))
   (lambda (x) (error "internal error: cannot return cl_program by value")))
 
 
@@ -483,7 +483,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                 "clReleaseProgram" 'program-release!))
 
 (define (program-create context source #!key (finalizer (lambda (x) (set-finalizer! x program-release!))))
-  (let ((program (make-program (make-u8vector (foreign-value "sizeof(cl_program)" int)))))
+  (let ((program (make-cl_program (make-u8vector (foreign-value "sizeof(cl_program)" int)))))
     (status-check
      ((foreign-lambda* int ((cl_context context) (c-string source) (cl_program program))
                        "int status;"
@@ -504,14 +504,9 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 ;; ==================== kernel ====================
 
-(define-record kernel blob)
-(define-record-printer kernel
-  (lambda (x op)
-    (display "#<kernel" op)
-    ;; (write (kernel-size x) op)
-    (display ">" op)))
+(define-record cl_kernel blob)
 (define-foreign-type cl_kernel (c-pointer "cl_kernel")
-  (lambda (x) (location (kernel-blob x)))
+  (lambda (x) (location (cl_kernel-blob x)))
   (lambda (x) (error "internal error: cannot return cl_kernel by value")))
 
 
@@ -521,7 +516,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                 "clReleaseKernel" 'kernel-release!))
 
 (define (kernel-create program name #!key (finalizer (lambda (x) (set-finalizer! x kernel-release!))))
-  (let ((kernel (make-kernel (make-u8vector (foreign-value "sizeof(cl_kernel)" int)))))
+  (let ((kernel (make-cl_kernel (make-u8vector (foreign-value "sizeof(cl_kernel)" int)))))
     (status-check
      ((foreign-lambda* int ((cl_program program) (c-string name) (cl_kernel kernel))
                        "int status;"
