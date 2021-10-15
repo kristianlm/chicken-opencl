@@ -458,7 +458,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
         ((s64vector? x) 's64)
         ((f32vector? x) 'f32)
         ((f64vector? x) 'f64)
-        (else (error "unknown type" x))))
+        (else (error "cannot determine type from" x))))
 
 ;; ((blob->type-converter 'f32) (f32vector->blob/shared (f32vector 1 2)))
 (define (blob->type-converter x) ;; <-- a symbol like 'f32
