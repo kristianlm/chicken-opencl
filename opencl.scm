@@ -418,7 +418,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 (define (mem-offset mem) (mem-info/size_t mem (foreign-value "CL_MEM_OFFSET" int)))
 
 ;; size in bytes
-(define (srfi4-vector-bytes x)
+(define (object-size x)
   (cond ((blob? x) (blob-size x))
         (( u8vector? x) (* 1 ( u8vector-length x)))
         (( s8vector? x) (* 1 ( s8vector-length x)))
@@ -430,6 +430,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
         ((s64vector? x) (* 8 (s64vector-length x)))
         ((f32vector? x) (* 4 (f32vector-length x)))
         ((f64vector? x) (* 8 (f64vector-length x)))
+        ((cl_mem?    x) (mem-size x))
         (else (error "cannot determine object size" x))))
 
 (define (srfi4-vector-blob x) ;; any type that works with the foreign type scheme-pointer
@@ -446,7 +447,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
         ((f64vector? x) (f64vector->blob/shared x))
         (else (error "cannot get blob from" x))))
 
-(define (srfi4-vector-type x)
+(define (object-type x)
   (cond ((blob? x) 'blob)
         (( u8vector? x) 'u8)
         (( s8vector? x) 's8)
@@ -458,6 +459,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
         ((s64vector? x) 's64)
         ((f32vector? x) 'f32)
         ((f64vector? x) 'f64)
+        ((cl_mem?    x) (cl_mem-type x))
         (else (error "cannot determine type from" x))))
 
 ;; ((blob->type-converter 'f32) (f32vector->blob/shared (f32vector 1 2)))
@@ -484,9 +486,9 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 (define (buffer-create context source/size #!key (flags 0) (type #f) (finalizer (lambda (x) (set-finalizer! x mem-release!))))
   (let* ((size (if (number? source/size) source/size
-                   (srfi4-vector-bytes source/size)))
+                   (object-size source/size)))
          (type (or type (if (number? source/size) 'blob
-                            (srfi4-vector-type source/size))))
+                            (object-type source/size))))
          (mem (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type)))
     (status-check
      ((foreign-lambda* int ((cl_context context) (unsigned-long flags) (size_t size) (cl_mem mem))
@@ -497,6 +499,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
      "clCreateBuffer" 'buffer-create)
     (finalizer mem)))
 
+(define buffer-size mem-size)
 (define buffer-type
   (getter-with-setter cl_mem-type
                       (lambda (mem value) (cl_mem-type-set! mem value))))
@@ -506,19 +509,19 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
    ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
                           (scheme-pointer src) (size_t offset) (size_t size))
                      "return(clEnqueueWriteBuffer(*cq, *buffer, CL_TRUE, offset, size, src, 0, NULL, NULL));")
-    cq buffer (srfi4-vector-blob src) offset (srfi4-vector-bytes src)))
+    cq buffer (srfi4-vector-blob src) offset (object-size src)))
   buffer)
 
 (define (buffer-read buffer cq #!key (type (buffer-type buffer)) (dst #f) (offset 0) (size #f))
   (let* ((size (or size (if dst
-                            (min (mem-size buffer) (srfi4-vector-bytes dst))
+                            (min (mem-size buffer) (object-size dst))
                             (mem-size buffer))))
          (dst  (or dst (make-blob size)))) ;; TODO: clear
    (status-check
     ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
                            (scheme-pointer dst) (size_t offset) (size_t size))
                       "return(clEnqueueReadBuffer(*cq, *buffer, CL_TRUE, offset, size, dst, 0, NULL, NULL));")
-     cq buffer (srfi4-vector-blob dst) offset (srfi4-vector-bytes dst)))
+     cq buffer (srfi4-vector-blob dst) offset (object-size dst)))
 
    ((blob->type-converter type) dst)))
 
