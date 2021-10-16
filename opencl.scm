@@ -158,23 +158,33 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (lambda (x) (location (cl_device-blob x)))
   (lambda (x) (error "internal error: cannot return cl_device_id by value")))
 
-(define (platform-devices platform)
+(define (platform-devices platform #!optional (device-type 'all))
+
+  (define device_type (case device-type
+                        ((gpu) (foreign-value "CL_DEVICE_TYPE_GPU" int))
+                        ((cpu) (foreign-value "CL_DEVICE_TYPE_CPU" int))
+                        ((all) (foreign-value "CL_DEVICE_TYPE_ALL" int))
+                        ((default) (foreign-value "CL_DEVICE_TYPE_DEFAULT" int))
+                        ((accelerator) (foreign-value "CL_DEVICE_TYPE_ACCELERATOR" int))
+                        (else (error "unknown device-type" device-type))))
+
   (define num-devices
-    ((foreign-lambda* size_t ((cl_platform_id platform))
+    ((foreign-lambda* size_t ((cl_platform_id platform) (int device_type))
                       "cl_uint num_devices = 0;"
-                      "clGetDeviceIDs(*platform, CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);"
+                      "clGetDeviceIDs(*platform, device_type, 0, NULL, &num_devices);"
                       "return(num_devices);")
-     platform))
+     platform device_type))
 
   (define size_cl_device_id (foreign-value "sizeof(cl_device_id)" size_t))
 
   (let ((blob (make-u8vector (* size_cl_device_id num-devices))))
     ((foreign-lambda* size_t ((cl_platform_id platform)
                               (u8vector blob)
+                              (int device_type)
                               (size_t num_devices))
-                      "clGetDeviceIDs(*platform, CL_DEVICE_TYPE_ALL, num_devices, (cl_device_id*)blob, 0);"
+                      "clGetDeviceIDs(*platform, device_type, num_devices, (cl_device_id*)blob, 0);"
                       "return(num_devices);")
-     platform blob num-devices)
+     platform blob device_type num-devices)
     (map make-cl_device (u8vector-split blob num-devices size_cl_device_id))))
 
 (define-foreign-type cl_device_info int)
