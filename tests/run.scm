@@ -73,7 +73,47 @@ __kernel void tt(__global uint *A) {
 
    (define b2 (buffer-create context b))
    (test "buffer type is copied" 'u32 (buffer-type b2))
-   (test "buffer type is copied" (* 4 2) (buffer-size b2))))
+   (test "buffer type is copied" (* 4 2) (buffer-size b2)))
+
+  (test-group
+   "kernel argument types"
+
+   (define kernel (kernel-create (program-build (program-create context "
+// not testing long and double because they don't work for all platforms
+__kernel void tt(char   a, short   b, int   c, float d, float e,
+                 __global char *_a, __global short *_b, __global int *_c, __global float *_d, __global float *_e) {
+  *_a = a * 2;
+  *_b = b * 2;
+  *_c = c * 2;
+  *_d = d * 2.0;
+  *_e = e * 2.0;
+}
+") device) "tt"))
+
+   (kernel-arg-set! kernel 0 (s8vector 11))
+   (kernel-arg-set! kernel 1 (s16vector 11))
+   (kernel-arg-set! kernel 2 (s32vector 11))
+   (kernel-arg-set! kernel 3 (f32vector 11))
+   (kernel-arg-set! kernel 4 (f32vector 11)) ;; yes, really, we're not doing f64
+
+   (define a (buffer-create context (s8vector 0)))
+   (define b (buffer-create context (s16vector 0)))
+   (define c (buffer-create context (s32vector 0)))
+   (define d (buffer-create context (f32vector 0)))
+   (define e (buffer-create context (f32vector 0)))
+
+   (kernel-arg-set! kernel 5 a)
+   (kernel-arg-set! kernel 6 b)
+   (kernel-arg-set! kernel 7 c)
+   (kernel-arg-set! kernel 8 d)
+   (kernel-arg-set! kernel 9 e)
+
+   (kernel-enqueue kernel cq (list 1))
+   (test "kernel arg char"  (s8vector 22)  (buffer-read a cq))
+   (test "kernel arg short" (s16vector 22) (buffer-read b cq))
+   (test "kernel arg int"   (s32vector 22) (buffer-read c cq))
+   (test "kernel arg float" (f32vector 22) (buffer-read d cq))
+   (test "kernel arg float" (f32vector 22) (buffer-read e cq))))
 
 (for-each (lambda (platform)
             (test-group

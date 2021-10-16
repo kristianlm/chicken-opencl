@@ -623,12 +623,33 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
      "clCreateKernel" 'program-build)
     (finalizer kernel)))
 
+;; value can be buffers or a srfi-4 vector of 1 element (so we can
+;; distinguish between uchar and uint, for example)
 (define (kernel-arg-set! kernel idx value)
-  ;; TODO: support non-mem types
+  ;; TODO: support size_t kernel arguments (32 or 64 bit, depending on system)?
+  ;; TODO: support vector kernel arguments?
   (status-check
-   ((foreign-lambda* int ((cl_kernel kernel) (unsigned-byte idx) (size_t size) (cl_mem mem))
-                     "return(clSetKernelArg(*kernel, idx, size, mem));")
-    kernel idx (foreign-value "sizeof(cl_mem)" int) value)
+   (let-syntax ((fl (er-macro-transformer
+                     (lambda (x r t)
+                       (let ((foreign-type (cadr x))
+                             (c-type       (caddr x)))
+                         `((foreign-lambda* int ((cl_kernel kernel)
+                                                 (unsigned-integer idx)
+                                                 (,foreign-type value))
+                                            "return(clSetKernelArg(*kernel, idx, sizeof(" ,c-type "), value));")
+                           kernel idx value))))))
+     (cond ((cl_mem?    value) (fl    cl_mem "cl_mem"))
+           (( u8vector? value) (fl  u8vector "cl_uchar"))
+           (( s8vector? value) (fl  s8vector "cl_char"))
+           ((u16vector? value) (fl u16vector "cl_short"))
+           ((s16vector? value) (fl s16vector "cl_short"))
+           ((u32vector? value) (fl u32vector "cl_int"))
+           ((s32vector? value) (fl s32vector "cl_int"))
+           ((u64vector? value) (fl u64vector "cl_long"))
+           ((s64vector? value) (fl s64vector "cl_long"))
+           ((f32vector? value) (fl f32vector "cl_float"))
+           ((f64vector? value) (fl f64vector "cl_double"))
+           (else (error "unsupported kernel argument type (try srfi4 vectors or buffers)" value))))
    "clSetKernelArg" 'kernel-arg))
 
 (define (kernel-enqueue kernel cq global-work-sizes #!key global-work-offsets local-work-sizes)
