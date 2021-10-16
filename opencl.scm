@@ -25,7 +25,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ==================== util ====================
 (define (u8vector-split v groups groupsize)
-  (unless (= (/ (u8vector-length v) groups) groupsize)
+  (unless (= (* groupsize groups) (u8vector-length v))
     (error "internal error: cannot split u8vector into equal sized parts" groups groupsize))
 
   (list-tabulate groups (lambda (idx) (subu8vector v ;;  ,-- from
