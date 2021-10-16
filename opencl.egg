@@ -5,7 +5,7 @@
  (license "BSD")
  (category math)
  (dependencies)
- (test-dependencies test)
+ (test-dependencies test srfi-18)
  (components (extension opencl
                         (source "opencl-module.scm")
                         (source-dependencies "opencl.scm")

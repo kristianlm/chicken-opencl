@@ -28,7 +28,10 @@ $ chicken-install -s -test
 - [ ] samplers
 - [ ] sub-buffers
 - [ ] non-blocking API
-- [ ] events
+- [x] event support for kernel and user (test fails on my Clover platform)
+- [ ] event support for buffer commands
+- [ ] event callbacks
+- [ ] event blocking (`clWaitForEvents`)
 
 So far everything is blocking. Implementing the non-blocking API would
 complicate things as the Chicken GC might get in the way.

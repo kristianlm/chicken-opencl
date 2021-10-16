@@ -345,6 +345,92 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
        "clCreateContext" 'context-create*)
       (finalizer context))))
 
+;; ==================== events ====================
+
+(define-record cl_event blob)
+(define-record-printer cl_event
+  (lambda (x op)
+    (display "#<cl_event " op)
+    (write (event-command-type x) op)
+    (display " " op)
+    (write (event-status x) op)
+    (display ">" op)))
+(define-foreign-type cl_event (c-pointer "cl_event")
+  (lambda (x) (and x (location (cl_event-blob x))))
+  (lambda (x) (error "internal error: cannot return cl_event by value")))
+
+
+(define (event-release! event)
+  (print "RELEASEING " event)
+  (status-check ((foreign-lambda* int ((cl_event event)) "return(clReleaseEvent(*event));") event)
+                "clReleaseEvent" 'event-release!))
+
+(define (event-allocate)
+  (make-cl_event (make-string (foreign-value "sizeof(cl_event)" int) #\null)))
+
+(define (event-create context)
+  (let ((event (event-allocate)))
+    ((foreign-lambda* int ((cl_context context) (cl_event event))
+                      "cl_int status;"
+                      "*event = clCreateUserEvent(*context, &status);"
+                      "return(status);")
+    context event)
+   event))
+
+(define (event-info/int name)
+  (lambda (event)
+    (let-location ((value int 0))
+      (status-check
+       ((foreign-lambda* int ((cl_event event) (int name) ((c-pointer int) value))
+                         "return(clGetEventInfo(*event, name, sizeof(int), value, NULL));")
+        event name (location value))
+       "clGetEventInfo" 'event-info/int)
+      value)))
+
+(define event-command-type* (event-info/int (foreign-value "CL_EVENT_COMMAND_TYPE" int)))
+(define event-status* (event-info/int (foreign-value "CL_EVENT_COMMAND_EXECUTION_STATUS" int)))
+
+(define (event-command-type event)
+  (let ((s (event-command-type* event)))
+    (cond ((= s (foreign-value "CL_COMMAND_NDRANGE_KERNEL" int))       'ndrange-kernel)
+          ((= s (foreign-value "CL_COMMAND_TASK" int))                 'task)
+          ((= s (foreign-value "CL_COMMAND_NATIVE_KERNEL" int))        'native-kernel)
+          ((= s (foreign-value "CL_COMMAND_READ_BUFFER" int))          'read-buffer)
+          ((= s (foreign-value "CL_COMMAND_WRITE_BUFFER" int))         'write-buffer)
+          ((= s (foreign-value "CL_COMMAND_COPY_BUFFER" int))          'copy-buffer)
+          ((= s (foreign-value "CL_COMMAND_READ_IMAGE" int))           'read-image)
+          ((= s (foreign-value "CL_COMMAND_WRITE_IMAGE" int))          'write-image)
+          ((= s (foreign-value "CL_COMMAND_COPY_IMAGE" int))           'copy-image)
+          ((= s (foreign-value "CL_COMMAND_COPY_BUFFER_TO_IMAGE" int)) 'copy-buffer-to-image)
+          ((= s (foreign-value "CL_COMMAND_COPY_IMAGE_TO_BUFFER" int)) 'copy-image-to-buffer)
+          ((= s (foreign-value "CL_COMMAND_MAP_BUFFER" int))           'map-buffer)
+          ((= s (foreign-value "CL_COMMAND_MAP_IMAGE" int))            'map-image)
+          ((= s (foreign-value "CL_COMMAND_UNMAP_MEM_OBJECT" int))     'unmap-mem-object)
+          ((= s (foreign-value "CL_COMMAND_MARKER" int))               'marker)
+          ((= s (foreign-value "CL_COMMAND_ACQUIRE_GL_OBJECTS" int))   'acquire-gl-objects)
+          ((= s (foreign-value "CL_COMMAND_RELEASE_GL_OBJECTS" int))   'release-gl-objects)
+          ((= s (foreign-value "CL_COMMAND_READ_BUFFER_RECT" int))     'read-buffer-rect)
+          ((= s (foreign-value "CL_COMMAND_WRITE_BUFFER_RECT" int))    'write-buffer-rect)
+          ((= s (foreign-value "CL_COMMAND_COPY_BUFFER_RECT" int))     'copy-buffer-rect)
+          ((= s (foreign-value "CL_COMMAND_USER" int))                 'user)
+          (else s))))
+
+(define (event-status event)
+  (let ((s (event-status* event)))
+    (cond ((= s (foreign-value "CL_QUEUED" int))    'queued)
+          ((= s (foreign-value "CL_SUBMITTED" int)) 'submitted)
+          ((= s (foreign-value "CL_RUNNING" int))   'running)
+          ((= s (foreign-value "CL_COMPLETE" int))  'complete)
+          (else s))))
+
+;; complete, or a negative integer to cancel all jobs waiting for this user event
+(define (event-complete! event #!optional (status (foreign-value "CL_COMPLETE" int)))
+  (status-check
+   ((foreign-lambda* int ((cl_event event) (int status))
+                     "return(clSetUserEventStatus(*event, status));")
+    event status)
+   "clSetUserEventStatus" 'event-complete!))
+
 ;; ==================== command queue ====================
 
 (define-record cl_command_queue blob)
@@ -358,15 +444,19 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (status-check ((foreign-lambda* int ((cl_command_queue cq)) "return(clReleaseCommandQueue(*cq));") cq)
                 "clReleaseCommandQueue" 'command-queue-release!))
 
-(define (command-queue context device #!key (finalizer (lambda (x) (set-finalizer! x command-queue-release!)))) ;; TODO: properties
-  (let* ((blob (make-u8vector (foreign-value "sizeof(cl_command_queue)" int)))
+(define (command-queue context device
+                       #!key out-of-order profile
+                       (finalizer (lambda (x) (set-finalizer! x command-queue-release!))))
+  (let* ((properties (+ (if out-of-order (foreign-value "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE" int) 0)
+                        (if profile (foreign-value "CL_QUEUE_PROFILING_ENABLE" int) 0)))
+         (blob (make-u8vector (foreign-value "sizeof(cl_command_queue)" int)))
          (cq (make-cl_command_queue blob)))
     (status-check
-     ((foreign-lambda* int ((cl_context context) (cl_device_id device) (cl_command_queue cq))
+     ((foreign-lambda* int ((cl_context context) (cl_device_id device) (int properties) (cl_command_queue cq))
                        "int status;"
-                       "*cq = clCreateCommandQueue(*context, *device, 0, &status);"
+                       "*cq = clCreateCommandQueue(*context, *device, properties, &status);"
                        "return(status);")
-      context device cq)
+      context device properties cq)
      "clCreateCommandQueue" 'command-queue)
     (finalizer cq)))
 
@@ -653,7 +743,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
            (else (error "unsupported kernel argument type (try srfi4 vectors or buffers)" value))))
    "clSetKernelArg" 'kernel-arg))
 
-(define (kernel-enqueue kernel cq global-work-sizes #!key global-work-offsets local-work-sizes)
+(define (kernel-enqueue kernel cq global-work-sizes #!key event wait global-work-offsets local-work-sizes)
 
   (define (->size_t-vector lst)
     (cond ((equal? lst #f) #f) ;; NULL is ok
@@ -671,16 +761,22 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                                        (length global-work-offsets))))
       (error "global-work-offsets dimensions must match global-work-sizes" global-work-sizes))
 
-  (status-check
-   ((foreign-lambda* int ((cl_command_queue cq) (cl_kernel kernel)
-                          (int work_dim) (u64vector gwo) (u64vector gws) (u64vector lws))
-                     "return(clEnqueueNDRangeKernel(*cq, *kernel, work_dim, gwo, gws, lws, 0, NULL, NULL));")
-    cq kernel
-    (length global-work-sizes) ;; dimensions
-    (->size_t-vector global-work-offsets)
-    (->size_t-vector global-work-sizes)
-    (->size_t-vector local-work-sizes))
-   "clEnqueueNDRangeKernel" 'kernel-enqueue))
-
-;; ========================================================================================
-
+  (let ((event (if (equal? event #t) ;; #f for no events, #t to create one, (event-allocate) to reuse existing
+                   (event-allocate)
+                   event)))
+    (status-check
+     ((foreign-lambda* int ((cl_command_queue cq) (cl_kernel kernel)
+                            (int work_dim) (u64vector gwo) (u64vector gws) (u64vector lws)
+                            (unsigned-int num_waitlist) (scheme-pointer waitlist)
+                            (cl_event event))
+                       "return(clEnqueueNDRangeKernel(*cq, *kernel, work_dim, gwo, gws, lws,
+                                                      num_waitlist, (cl_event*)waitlist, event));")
+      cq kernel
+      (length global-work-sizes) ;; dimensions
+      (->size_t-vector global-work-offsets)
+      (->size_t-vector global-work-sizes)
+      (->size_t-vector local-work-sizes)
+      (if wait (length wait) 0) (and wait (apply conc (map cl_event-blob wait)))
+      event)
+     "clEnqueueNDRangeKernel" 'kernel-enqueue)
+    event))

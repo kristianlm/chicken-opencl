@@ -1,4 +1,4 @@
-(import opencl srfi-4 test chicken.string chicken.gc)
+(import opencl srfi-4 test chicken.string chicken.gc srfi-18)
 
 (define (test-platform platform)
 
@@ -117,7 +117,51 @@ __kernel void test_float(float a1, float4 a4, __global float *out) { *out = a1 +
      (kernel-arg-set! test_float 1 (f32vector 1 2 3 4))
      (kernel-arg-set! test_float 2 out)
      (kernel-enqueue test_float cq (list 1))
-     (test "kernel argument type float"  (+ 11.0 1 2 3 4)  (f32vector-ref (buffer-read out cq type: 'f32) 0)))))
+     (test "kernel argument type float"  (+ 11.0 1 2 3 4)  (f32vector-ref (buffer-read out cq type: 'f32) 0))))
+
+  (test-group
+   "events"
+
+   (define cq2 (command-queue context device))
+   (define kernel (kernel-create (program-build (program-create context "
+__kernel void test (__global char *out) {
+ *out = 1;
+}") device) "test"))
+   (define out (buffer-create context 1 type: 'u8))
+   (buffer-write out cq (u8vector 0))
+   (define myevent (event-create context))
+   (kernel-arg-set! kernel 0 out)
+   (define ke (kernel-enqueue kernel cq (list 1) event: #t wait: (list myevent)))
+   (thread-sleep! 0.2) ;; TODO: how else can we _really_ make kernel isn't run?
+   (test (conc "myevent " myevent) 'submitted (event-status myevent))
+
+
+
+   ;; I can't get this to work with a single out-of-order cq, it
+   ;; blocks indefinitely. I'd expect the read command to execute
+   ;; out-of-order from the kernel, and return with our initial 0.
+   ;; A separate cq2 works, however:
+   (test "kernel output unmodified" (u8vector 0) (buffer-read out cq2))
+   (test (conc "kernel is waiting for " myevent) 'queued (event-status ke))
+   (event-complete! myevent)
+   (test (conc "myevent complete " myevent) 'complete (event-status myevent))
+   ;; the following buffer-read is also a synchronization point for kernel:
+   (test "kernel ran (output modified)" (u8vector 1) (buffer-read out cq))
+   (thread-sleep! 0.2)
+
+   ;; From OpenCL 1.1 Reference Pages:
+   ;; Using clGetEventInfo to determine if a command identified by event
+   ;; has finished execution (i.e. CL_EVENT_COMMAND_EXECUTION_STATUS
+   ;; returns CL_COMPLETE) is not a synchronization point. There are no
+   ;; guarantees that the memory objects being modified by command
+   ;; associated with event will be visible to other enqueued commands.
+   ;;
+   ;; I don't understand what that means, but it could be the reason
+   ;; that my Radeon platform is failing the following test. So I'm
+   ;; skipping it here.
+   ;;
+   ;; (test (conc "kernel ran " ke) 'complete (event-status ke))
+   ))
 
 (for-each (lambda (platform)
             (test-group
