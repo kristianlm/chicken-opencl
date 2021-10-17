@@ -595,12 +595,11 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
   (status-check ((foreign-lambda* int ((cl_mem mem)) "return(clReleaseMemObject(*mem));") mem)
                 "clReleaseMem" 'mem-release!))
 
-(define (buffer-create context source/size #!key (flags 0) (type #f) (finalizer (lambda (x) (set-finalizer! x mem-release!))))
-  (let* ((size (if (number? source/size) source/size
-                   (object-size source/size)))
-         (type (or type (if (number? source/size) 'blob
-                            (object-type source/size))))
-         (mem (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type)))
+(define (mem-allocate type)
+  (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type))
+
+(define (buffer-create* context size type flags finalizer)
+  (let* ((mem (mem-allocate type)))
     (status-check
      ((foreign-lambda* int ((cl_context context) (unsigned-long flags) (size_t size) (cl_mem mem))
                        "int status;"
@@ -609,6 +608,25 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
       context flags size mem)
      "clCreateBuffer" 'buffer-create)
     (finalizer mem)))
+
+(define (buffer-create cq/context source/size
+                       #!key (flags 0) (type 'blob)
+                       (finalizer (lambda (x) (set-finalizer! x mem-release!))))
+  (if (cl_command_queue? cq/context)
+      (let* ((source source/size)
+             (cq cq/context)
+             (context (command-queue-context cq))
+             (buffer (buffer-create* context
+                                     (object-size source)
+                                     (object-type source)
+                                     flags finalizer)))
+        (if (cl_mem? source)
+            (error 'buffer-create "TODO: buffer-copy on source" source)
+            (buffer-write buffer cq source)))
+      (let ()
+        (unless (integer? source/size)
+          (error 'buffer-create "invalid buffer size (try giving command-queue instead of context)" source/size))
+        (buffer-create* cq/context source/size type flags finalizer))))
 
 (define buffer-size mem-size)
 (define buffer-type

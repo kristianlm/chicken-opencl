@@ -11,8 +11,8 @@
 
   (define data (u32vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
   ;;                                 ,-- for type and size information only
-  (define A (buffer-create context data))
-  (buffer-write A cq data)
+  (define A (buffer-create cq data))
+
   (test "read-back after buffer-write"
         (u32vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
         (buffer-read A cq))
@@ -59,14 +59,13 @@ __kernel void tt(__global uint *A) {
   (test-group
    "datatype conversion"
 
-   (test "buffer without explicit type" 'blob (buffer-type (buffer-create context 32)))
-   (test "buffer by srfi4 vector type" 'f32 (buffer-type (buffer-create context (f32vector 1 2))))
-   (test "buffer by srfi4 vector type" 'f64 (buffer-type (buffer-create context (f64vector 1 2))))
-   (test "buffer by srfi4 vector type" 'u64 (buffer-type (buffer-create context (u64vector 1 2))))
+   (test "buffer with no type"         'blob (buffer-type (buffer-create context 32)))
+   (test "buffer with explicit type"     'u8 (buffer-type (buffer-create context 32 type: 'u8)))
+   (test "buffer by srfi4 vector type"  'f32 (buffer-type (buffer-create cq (f32vector 1 2))))
+   (test "buffer by srfi4 vector type"  'f64 (buffer-type (buffer-create cq (f64vector 1 2))))
+   (test "buffer by srfi4 vector type"  'u64 (buffer-type (buffer-create cq (u64vector 1 2))))
 
-   ;;                                                 ,-- bytes
-   (define b (buffer-write (buffer-create context (* 4 2) type: 's32) cq
-                           (u32vector 1 2)))
+   (define b (buffer-create cq (s32vector 1 2)))
    (test "buffer-type match" 's32 (buffer-type b))
 
    (test "implicit buffer-type" (s32vector 1 2) (buffer-read b cq))
@@ -74,7 +73,7 @@ __kernel void tt(__global uint *A) {
    (test "explicit buffer type" (u32vector 1 2) (buffer-read b cq))
    (test "explicit buffer-read type" (u32vector->blob (u32vector 1 2)) (buffer-read b cq type: 'blob))
 
-   (define b2 (buffer-create context b))
+   (define b2 (buffer-create cq b))
    (test "buffer type is copied" 'u32 (buffer-type b2))
    (test "buffer type is copied" (* 4 2) (buffer-size b2)))
 
