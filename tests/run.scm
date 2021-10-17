@@ -81,10 +81,10 @@ __kernel void tt(__global uint *A) {
    (define program
      (program-build (program-create context "
 
-__kernel void test_char (char a1,  char4 a4,  __global char  *out) { *out = a1 + a4.r + a4.g + a4.b + a4.a; }
-__kernel void test_short(short a1, short4 a4, __global short *out) { *out = a1 + a4.r + a4.g + a4.b + a4.a; }
-__kernel void test_int  (int a1,   int4 a4,   __global int   *out) { *out = a1 + a4.r + a4.g + a4.b + a4.a; }
-__kernel void test_float(float a1, float4 a4, __global float *out) { *out = a1 + a4.r + a4.g + a4.b + a4.a; }
+__kernel void test_char (char a1,  char4 a4,  __global char  *out) { *out = a1 + a4.s0 + a4.s1 + a4.s2 + a4.s3; }
+__kernel void test_short(short a1, short4 a4, __global short *out) { *out = a1 + a4.s0 + a4.s1 + a4.s2 + a4.s3; }
+__kernel void test_int  (int a1,   int4 a4,   __global int   *out) { *out = a1 + a4.s0 + a4.s1 + a4.s2 + a4.s3; }
+__kernel void test_float(float a1, float4 a4, __global float *out) { *out = a1 + a4.s0 + a4.s1 + a4.s2 + a4.s3; }
 // long and double not supported by all platforms
 
 ") device))
