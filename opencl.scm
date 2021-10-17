@@ -444,7 +444,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (status-check ((foreign-lambda* int ((cl_command_queue cq)) "return(clReleaseCommandQueue(*cq));") cq)
                 "clReleaseCommandQueue" 'command-queue-release!))
 
-(define (command-queue context device
+(define (command-queue-create context device
                        #!key out-of-order profile
                        (finalizer (lambda (x) (set-finalizer! x command-queue-release!))))
   (let* ((properties (+ (if out-of-order (foreign-value "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE" int) 0)

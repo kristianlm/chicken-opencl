@@ -5,7 +5,7 @@
 (define (test-device device)
 
   (define context (context-create device))
-  (define cq (command-queue context device))
+  (define cq (command-queue-create context device))
 
   (define data (u32vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
   ;;                                 ,-- for type and size information only
@@ -123,7 +123,7 @@ __kernel void test_float(float a1, float4 a4, __global float *out) { *out = a1 +
   (test-group
    "events"
 
-   (define cq2 (command-queue context device))
+   (define cq2 (command-queue-create context device))
    (define kernel (kernel-create (program-build (program-create context "
 __kernel void test (__global char *out) {
  *out = 1;
