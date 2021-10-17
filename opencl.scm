@@ -9,7 +9,7 @@
 
 (foreign-declare "
 // TODO: don't hardcode this
-#define CL_TARGET_OPENCL_VERSION 120
+#define CL_TARGET_OPENCL_VERSION 110
 
 #ifdef __APPLE__
 #include <OpenCL/cl.h>
