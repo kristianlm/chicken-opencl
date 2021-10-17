@@ -71,11 +71,7 @@ __kernel void tt(__global uint *A) {
    (test "implicit buffer-type" (s32vector 1 2) (buffer-read b cq))
    (set! (buffer-type b) 'u32) ;; you're not really meant to modify this
    (test "explicit buffer type" (u32vector 1 2) (buffer-read b cq))
-   (test "explicit buffer-read type" (u32vector->blob (u32vector 1 2)) (buffer-read b cq type: 'blob))
-
-   (define b2 (buffer-create cq b))
-   (test "buffer type is copied" 'u32 (buffer-type b2))
-   (test "buffer type is copied" (* 4 2) (buffer-size b2)))
+   (test "explicit buffer-read type" (u32vector->blob (u32vector 1 2)) (buffer-read b cq type: 'blob)))
 
   (test-group
    "kernel argument types"
