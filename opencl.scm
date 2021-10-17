@@ -436,7 +436,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ==================== command queue ====================
 
-(define-record cl_command_queue blob)
+(define-record cl_command_queue blob context)
 (define-foreign-type cl_command_queue (c-pointer "cl_command_queue")
   (lambda (x) (location (cl_command_queue-blob x)))
   (lambda (x) (error "internal error: cannot return cl_command_queue by value")))
@@ -453,7 +453,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (let* ((properties (+ (if out-of-order (foreign-value "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE" int) 0)
                         (if profile (foreign-value "CL_QUEUE_PROFILING_ENABLE" int) 0)))
          (blob (make-u8vector (foreign-value "sizeof(cl_command_queue)" int)))
-         (cq (make-cl_command_queue blob)))
+         (cq (make-cl_command_queue blob context)))
     (status-check
      ((foreign-lambda* int ((cl_context context) (cl_device_id device) (int properties) (cl_command_queue cq))
                        "int status;"
@@ -463,13 +463,11 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
      "clCreateCommandQueue" 'command-queue)
     (finalizer cq)))
 
-(define (command-queue-context cq)
-  (let ((context (context-allocate)))
-   (status-check
-    ((foreign-lambda* int ((cl_command_queue cq) (cl_context value))
-                      "return(clGetCommandQueueInfo(*cq, CL_QUEUE_CONTEXT, sizeof(cl_context), value, NULL));") cq context)
-    "clGetCommandQueueInfo" 'command-queue-context)
-   context))
+;; we could use clGetCommandQueueInfo here, but that would make things
+;; complicated with the GC and finalizers. it'd have to return a new
+;; context with a finalizer, and probaly increasing the OpenCL context
+;; refcount. this is much simpler.
+(define (command-queue-context cq) (cl_command_queue-context cq))
 
 ;; ==================== buffer ====================
 
