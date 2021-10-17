@@ -330,10 +330,13 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (status-check ((foreign-lambda* int ((cl_context context)) "return(clReleaseContext(*context));") context)
                 "clReleaseContext" 'context-release!))
 
+(define (context-allocate)
+  (make-cl_context (make-u8vector (foreign-value "sizeof(cl_context)" int))))
+
 (define (context-create devices #!key (finalizer (lambda (x) (set-finalizer! x context-release!))))
   (let ((devices (if (pair? devices) devices (list devices)))) ;; list is optional
     (let* ((concatenated (list->u8vector (append-map (o u8vector->list cl_device-blob) devices)))
-           (context (make-cl_context (make-u8vector (foreign-value "sizeof(cl_context)" int)))))
+           (context (context-allocate)))
       (status-check
        ((foreign-lambda* int ((cl_context context) (u8vector device_list) (size_t num_devices))
                          "int status;"
@@ -459,6 +462,14 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
       context device properties cq)
      "clCreateCommandQueue" 'command-queue)
     (finalizer cq)))
+
+(define (command-queue-context cq)
+  (let ((context (context-allocate)))
+   (status-check
+    ((foreign-lambda* int ((cl_command_queue cq) (cl_context value))
+                      "return(clGetCommandQueueInfo(*cq, CL_QUEUE_CONTEXT, sizeof(cl_context), value, NULL));") cq context)
+    "clGetCommandQueueInfo" 'command-queue-context)
+   context))
 
 ;; ==================== buffer ====================
 

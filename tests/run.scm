@@ -7,6 +7,8 @@
   (define context (context-create device))
   (define cq (command-queue-create context device))
 
+  (test context (command-queue-context cq))
+
   (define data (u32vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
   ;;                                 ,-- for type and size information only
   (define A (buffer-create context data))
