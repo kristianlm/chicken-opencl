@@ -1,8 +1,9 @@
-(import opencl srfi-4 test chicken.string chicken.gc srfi-18)
+(import opencl srfi-4 chicken.string chicken.gc
+        test
+        (only srfi-18 thread-sleep!))
 
-(define (test-platform platform)
+(define (test-device device)
 
-  (define device (car (platform-devices platform)))
   (define context (context-create device))
   (define cq (command-queue context device))
 
@@ -163,10 +164,10 @@ __kernel void test (__global char *out) {
    ;; (test (conc "kernel ran " ke) 'complete (event-status ke))
    ))
 
-(for-each (lambda (platform)
+(for-each (lambda (device)
             (test-group
-             (conc "platform " (platform-name platform))
-             (test-platform platform)))
-          (platforms))
+             (conc "device " device)
+             (test-device device)))
+          (flatten (map platform-devices (platforms))))
 
 (test-exit)
