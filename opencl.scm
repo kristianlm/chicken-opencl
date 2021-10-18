@@ -327,8 +327,12 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 (define (context-release! context)
   (print "RELEASEING " context)
-  (status-check ((foreign-lambda* int ((cl_context context)) "return(clReleaseContext(*context));") context)
-                "clReleaseContext" 'context-release!))
+  (when (cl_context-blob context)
+    (status-check ((foreign-lambda* int ((cl_context context))
+                                    "return(clReleaseContext(*context));")
+                   context)
+                  "clReleaseContext" 'context-release!)
+    (cl_context-blob-set! context #f)))
 
 (define (context-allocate)
   (make-cl_context (make-u8vector (foreign-value "sizeof(cl_context)" int))))
@@ -365,8 +369,10 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 (define (event-release! event)
   (print "RELEASEING " event)
-  (status-check ((foreign-lambda* int ((cl_event event)) "return(clReleaseEvent(*event));") event)
-                "clReleaseEvent" 'event-release!))
+  (when (cl_event-blob event)
+    (status-check ((foreign-lambda* int ((cl_event event)) "return(clReleaseEvent(*event));") event)
+                  "clReleaseEvent" 'event-release!)
+    (cl_event-blob-set! event #f)))
 
 (define (event-allocate)
   (make-cl_event (make-string (foreign-value "sizeof(cl_event)" int) #\null)))
@@ -444,8 +450,10 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 (define (command-queue-release! cq)
   (print "RELEASEING " cq)
-  (status-check ((foreign-lambda* int ((cl_command_queue cq)) "return(clReleaseCommandQueue(*cq));") cq)
-                "clReleaseCommandQueue" 'command-queue-release!))
+  (when (cl_command_queue-blob cq)
+    (status-check ((foreign-lambda* int ((cl_command_queue cq)) "return(clReleaseCommandQueue(*cq));") cq)
+                  "clReleaseCommandQueue" 'command-queue-release!)
+    (cl_command_queue-blob-set! cq #f)))
 
 (define (command-queue-create context device
                        #!key out-of-order profile
@@ -590,8 +598,10 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 (define (mem-release! mem)
   (print "RELEASEING " mem)
-  (status-check ((foreign-lambda* int ((cl_mem mem)) "return(clReleaseMemObject(*mem));") mem)
-                "clReleaseMem" 'mem-release!))
+  (when (cl_mem-blob mem)
+    (status-check ((foreign-lambda* int ((cl_mem mem)) "return(clReleaseMemObject(*mem));") mem)
+                  "clReleaseMem" 'mem-release!)
+    (cl_mem-blob-set! mem #f)))
 
 (define (mem-allocate type)
   (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type))
@@ -671,8 +681,12 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 (define (program-release! program)
   (print "RELEASEING " program)
-  (status-check ((foreign-lambda* int ((cl_program program)) "return(clReleaseProgram(*program));") program)
-                "clReleaseProgram" 'program-release!))
+  (when (cl_program-blob program)
+    (status-check ((foreign-lambda* int ((cl_program program))
+                                    "return(clReleaseProgram(*program));")
+                   program)
+                  "clReleaseProgram" 'program-release!)
+    (cl_program-blob-set! program #f)))
 
 (define (program-create context source #!key (finalizer (lambda (x) (set-finalizer! x program-release!))))
   (let ((program (make-cl_program (make-u8vector (foreign-value "sizeof(cl_program)" int)))))
@@ -731,8 +745,10 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 (define (kernel-release! kernel)
   (print "RELEASEING " kernel)
-  (status-check ((foreign-lambda* int ((cl_kernel kernel)) "return(clReleaseKernel(*kernel));") kernel)
-                "clReleaseKernel" 'kernel-release!))
+  (when (cl_kernel-blob kernel)
+    (status-check ((foreign-lambda* int ((cl_kernel kernel)) "return(clReleaseKernel(*kernel));") kernel)
+                  "clReleaseKernel" 'kernel-release!)
+    (cl_kernel-blob-set! kernel #f)))
 
 (define (kernel-create program name #!key (finalizer (lambda (x) (set-finalizer! x kernel-release!))))
   (let ((kernel (make-cl_kernel (make-u8vector (foreign-value "sizeof(cl_kernel)" int)))))
