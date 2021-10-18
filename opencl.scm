@@ -608,23 +608,28 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
     (finalizer mem)))
 
 (define (buffer-create cq/context source/size
-                       #!key (flags 0) (type 'blob)
+                       #!key (flags 0) (type #f)
                        (finalizer (lambda (x) (set-finalizer! x mem-release!))))
   (if (cl_command_queue? cq/context)
       (let* ((source source/size)
              (cq cq/context)
              (context (command-queue-context cq))
              (buffer (buffer-create* context
-                                     (object-size source)
-                                     (object-type source)
+                                     (if (integer? source)
+                                         source
+                                         (object-size source))
+                                     (or type
+                                         (if (integer? source)
+                                             'blob
+                                             (object-type source)))
                                      flags finalizer)))
-        (if (cl_mem? source)
-            (error 'buffer-create "TODO: buffer-copy on source" source)
-            (buffer-write buffer cq source)))
+        (cond ((cl_mem? source) (error 'buffer-create "TODO: buffer-copy on source" source))
+              ((integer? source) buffer) ;; you could just supply a context for this
+              (else (buffer-write buffer cq source))))
       (let ()
         (unless (integer? source/size)
           (error 'buffer-create "invalid buffer size (try giving command-queue instead of context)" source/size))
-        (buffer-create* cq/context source/size type flags finalizer))))
+        (buffer-create* cq/context source/size (or type 'blob) flags finalizer))))
 
 (define buffer-size mem-size)
 (define buffer-type

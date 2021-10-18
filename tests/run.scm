@@ -91,6 +91,7 @@ __kernel void test_float(float a1, float4 a4, __global float *out) { *out = a1 +
    (define test_int   (kernel-create program "test_int"))
    (define test_float (kernel-create program "test_float"))
    (define out (buffer-create context 4)) ;; <-- plenty of room for everybody
+   (define out (buffer-create cq 4)) ;; you can supply cq too, but only its context is used
 
    (begin
      (kernel-arg-set! test_char 0 (s8vector 11))
