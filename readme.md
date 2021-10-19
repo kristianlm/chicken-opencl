@@ -217,13 +217,19 @@ Create or release a `cl_kernel`. See [this page](https://www.khronos.org/registr
 
 Calls
 [`clSetKernelArg`](https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/clSetKernelArg.html). `idx`
-must be an integer. `value` must be a srfi-4 vector or a `cl_buffer`.
+must be an integer, where 0 is the first kernel argument. `value` must
+be a srfi-4 vector for by-value argument types, or `cl_buffer` for
+arguments pointers.
 
-The type of the kernel argument (ie. `float`) must match the srfi-4
-vector type (ie. `(f32vector 1)`). It is unfortunately not possible to
-enforce checks for this. The srfi-4 vector's length must match the
-kernel argument. For example, a kernel argument `float4` must be
-passed a `f32vector` of length 4.
+The type of the kernel argument (ie. `float2`) must match the srfi-4
+vector type (ie. `(f32vector 1 1)`). It is unfortunately not possible
+to enforce checks for this. The srfi-4 vector's length must match the
+kernel argument. For example, the arguments to `__kernel foo(long4 a, float *result)` could be initialized like this:
+
+```scheme
+(kernel-arg-set! kernel 0 (s64vector 1 2 3 4))
+(kernel-arg-set! kernel 1 (buffer-create ctx (* 4 1000) type: 'f32))
+```
 
     [procedure] (kernel-enqueue kernel cq global-work-sizes #!key event wait global-work-offsets local-work-sizes) => (or cl_event #f)
 
@@ -285,10 +291,12 @@ Predicates for record types. `buffer` object are `cl_mem?` records.
 - [x] create context and command queue
 - [x] create, compile and run programs from source-code
 - [ ] create, compile and run programs from IR/Binary
+- [ ] build options (in [`clBuildProgram`](https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/clBuildProgram.html))
 - [x] launch kernels (global-size, local-size and global-offset)
 - [ ] kernel name
 - [ ] `clCreateKernelsInProgram`
 - [x] create, read and write buffer objects
+- [ ] set read-only and write-only buffer flags
 - [ ] create, read and write image objects
 - [ ] copy buffers
 - [ ] copy images
