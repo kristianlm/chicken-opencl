@@ -326,7 +326,6 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (lambda (x) (error "internal error: cannot return cl_context by value")))
 
 (define (context-release! context)
-  (print "RELEASEING " context)
   (when (cl_context-blob context)
     (status-check ((foreign-lambda* int ((cl_context context))
                                     "return(clReleaseContext(*context));")
@@ -368,7 +367,6 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 
 (define (event-release! event)
-  (print "RELEASEING " event)
   (when (cl_event-blob event)
     (status-check ((foreign-lambda* int ((cl_event event)) "return(clReleaseEvent(*event));") event)
                   "clReleaseEvent" 'event-release!)
@@ -449,7 +447,6 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 
 (define (command-queue-release! cq)
-  (print "RELEASEING " cq)
   (when (cl_command_queue-blob cq)
     (status-check ((foreign-lambda* int ((cl_command_queue cq)) "return(clReleaseCommandQueue(*cq));") cq)
                   "clReleaseCommandQueue" 'command-queue-release!)
@@ -597,7 +594,6 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
               (error "dont know how to convert type" x)))))
 
 (define (mem-release! mem)
-  (print "RELEASEING " mem)
   (when (cl_mem-blob mem)
     (status-check ((foreign-lambda* int ((cl_mem mem)) "return(clReleaseMemObject(*mem));") mem)
                   "clReleaseMem" 'mem-release!)
@@ -680,7 +676,6 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
   (lambda (x) (error "internal error: cannot return cl_program by value")))
 
 (define (program-release! program)
-  (print "RELEASEING " program)
   (when (cl_program-blob program)
     (status-check ((foreign-lambda* int ((cl_program program))
                                     "return(clReleaseProgram(*program));")
@@ -744,7 +739,6 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 
 (define (kernel-release! kernel)
-  (print "RELEASEING " kernel)
   (when (cl_kernel-blob kernel)
     (status-check ((foreign-lambda* int ((cl_kernel kernel)) "return(clReleaseKernel(*kernel));") kernel)
                   "clReleaseKernel" 'kernel-release!)
