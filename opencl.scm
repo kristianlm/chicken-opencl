@@ -599,6 +599,8 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                   "clReleaseMem" 'mem-release!)
     (cl_mem-blob-set! mem #f)))
 
+(define buffer-release! mem-release!) ;; for API consistency
+
 (define (mem-allocate type)
   (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type))
 
