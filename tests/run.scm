@@ -9,13 +9,22 @@
 
   (test context (command-queue-context cq))
 
-  (define data (u32vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15))
-  ;;                                 ,-- for type and size information only
-  (define A (buffer-create cq data))
+  (define A (buffer-create cq (u32vector 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)))
 
-  (test "read-back after buffer-write"
-        (u32vector 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
-        (buffer-read A cq))
+  (test-group
+   "buffer-write and buffer-read"
+
+   (test "read-back after buffer-write"
+         (u32vector 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)
+         (buffer-read A cq))
+
+   (test "read smaller part" (u32vector 1)     (buffer-read A cq bytes: 4))
+   (test "read smaller part" (u32vector 1 2)   (buffer-read A cq bytes: 8))
+   (test "read smaller part" (u32vector 2 3 4) (buffer-read A cq bytes: 12 byte-offset: 4))
+
+   (let ((destination (u32vector->blob (u32vector 0 0 0 0))))
+     (test "new dst" (u32vector 2 3 4 0) (buffer-read A cq dst: destination bytes: 12 byte-offset: 4))
+     (test "old dst" (u32vector 2 3 4 0) (blob->u32vector destination))))
 
   (define kernel (kernel-create (program-build (program-create context "
 __kernel void tt(__global uint *A) {

@@ -652,18 +652,18 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
     cq buffer (srfi4-vector-blob src) offset (object-size src)))
   buffer)
 
-(define (buffer-read buffer cq #!key (type (buffer-type buffer)) (dst #f) (offset 0) (size #f))
-  (let* ((size (or size (if dst
-                            (min (mem-size buffer) (object-size dst))
-                            (mem-size buffer))))
-         (dst  (or dst (make-blob size)))) ;; TODO: clear
-   (status-check
-    ((foreign-lambda* int ((cl_command-queue cq) (cl_mem buffer)
-                           (scheme-pointer dst) (size_t offset) (size_t size))
-                      "return(clEnqueueReadBuffer(*cq, *buffer, CL_TRUE, offset, size, dst, 0, NULL, NULL));")
-     cq buffer (srfi4-vector-blob dst) offset (object-size dst)))
+(define (buffer-read buffer cq #!key (type (buffer-type buffer)) (dst #f) (byte-offset 0) (bytes #f))
+  (let* ((bytes (or bytes (if dst
+                              (min (mem-size buffer) (object-size dst))
+                              (mem-size buffer))))
+         (dst  (or dst (make-blob bytes)))) ;; TODO: clear
+    (status-check
+     ((foreign-lambda* int ((cl_command-queue cq) (cl_mem buffer)
+                            (scheme-pointer dst) (size_t offset) (size_t bytes))
+                       "return(clEnqueueReadBuffer(*cq, *buffer, CL_TRUE, offset, bytes, dst, 0, NULL, NULL));")
+      cq buffer (srfi4-vector-blob dst) byte-offset bytes))
 
-   ((blob->type-converter type) dst)))
+    ((blob->type-converter type) dst)))
 
 ;; ==================== program ====================
 
