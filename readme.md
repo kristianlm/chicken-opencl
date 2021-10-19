@@ -33,6 +33,26 @@ finalizers attached. Also, `(gc #t)` can sometimes be used to free
 ObjecCL objects no longer needed by the application, freeing OpenCL
 resources sooner.
 
+If any of the OpenCL C procedures return an error code other than
+`CL_SUCCESS`, an error is signaled, hopefully with a meaningful error
+message.
+
+## OpenCL installation
+
+You must have a working OpenCL installed on your system for this egg
+to work. `clinfo` is a useful tool to diagnose and verify
+this. Environment variables like `OCL_ICD_VENDORS` may be useful to
+out-source the device-picking process:
+
+```sh
+ ~> csi -R opencl -P '(platforms)'
+(#<cl_platform "Intel(R) OpenCL HD Graphics">
+ #<cl_platform "Clover">
+ #<cl_platform "Portable Computing Language">)
+ ~> env OCL_ICD_VENDORS=intel.icd csi -R opencl -P '(platforms)'
+(#<cl_platform "Intel(R) OpenCL HD Graphics">)
+```
+
 ## Example
 
 There is unfortunately a bit boilerplate to get started, but luckily
@@ -279,6 +299,7 @@ Predicates for record types. `buffer` object are `cl_mem?` records.
 - [ ] event support for buffer commands
 - [ ] event callbacks
 - [ ] event blocking (`clWaitForEvents`)
+- [ ] OpenCL <-> OpenGL interop
 
 So far everything is blocking. Implementing the non-blocking API would
 complicate things as the Chicken GC might get in the way.
