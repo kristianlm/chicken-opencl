@@ -440,17 +440,17 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 ;; ==================== command queue ====================
 
-(define-record cl_command_queue blob context)
-(define-foreign-type cl_command_queue (c-pointer "cl_command_queue")
-  (lambda (x) (location (cl_command_queue-blob x)))
-  (lambda (x) (error "internal error: cannot return cl_command_queue by value")))
+(define-record cl_command-queue blob context)
+(define-foreign-type cl_command-queue (c-pointer "cl_command_queue")
+  (lambda (x) (location (cl_command-queue-blob x)))
+  (lambda (x) (error "internal error: cannot return cl_command-queue by value")))
 
 
 (define (command-queue-release! cq)
-  (when (cl_command_queue-blob cq)
-    (status-check ((foreign-lambda* int ((cl_command_queue cq)) "return(clReleaseCommandQueue(*cq));") cq)
+  (when (cl_command-queue-blob cq)
+    (status-check ((foreign-lambda* int ((cl_command-queue cq)) "return(clReleaseCommandQueue(*cq));") cq)
                   "clReleaseCommandQueue" 'command-queue-release!)
-    (cl_command_queue-blob-set! cq #f)))
+    (cl_command-queue-blob-set! cq #f)))
 
 (define (command-queue-create context device
                        #!key out-of-order profile
@@ -458,9 +458,9 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (let* ((properties (+ (if out-of-order (foreign-value "CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE" int) 0)
                         (if profile (foreign-value "CL_QUEUE_PROFILING_ENABLE" int) 0)))
          (blob (make-u8vector (foreign-value "sizeof(cl_command_queue)" int)))
-         (cq (make-cl_command_queue blob context)))
+         (cq (make-cl_command-queue blob context)))
     (status-check
-     ((foreign-lambda* int ((cl_context context) (cl_device_id device) (int properties) (cl_command_queue cq))
+     ((foreign-lambda* int ((cl_context context) (cl_device_id device) (int properties) (cl_command-queue cq))
                        "int status;"
                        "*cq = clCreateCommandQueue(*context, *device, properties, &status);"
                        "return(status);")
@@ -472,7 +472,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 ;; complicated with the GC and finalizers. it'd have to return a new
 ;; context with a finalizer, and probaly increasing the OpenCL context
 ;; refcount. this is much simpler.
-(define (command-queue-context cq) (cl_command_queue-context cq))
+(define (command-queue-context cq) (cl_command-queue-context cq))
 
 ;; ==================== buffer ====================
 
@@ -616,7 +616,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 (define (buffer-create cq/context source/size
                        #!key (flags 0) (type #f)
                        (finalizer (lambda (x) (set-finalizer! x mem-release!))))
-  (if (cl_command_queue? cq/context)
+  (if (cl_command-queue? cq/context)
       (let* ((source source/size)
              (cq cq/context)
              (context (command-queue-context cq))
@@ -644,7 +644,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 (define (buffer-write buffer cq src #!key (offset 0))
   (status-check
-   ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
+   ((foreign-lambda* int ((cl_command-queue cq) (cl_mem buffer)
                           (scheme-pointer src) (size_t offset) (size_t size))
                      "return(clEnqueueWriteBuffer(*cq, *buffer, CL_TRUE, offset, size, src, 0, NULL, NULL));")
     cq buffer (srfi4-vector-blob src) offset (object-size src)))
@@ -656,7 +656,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                             (mem-size buffer))))
          (dst  (or dst (make-blob size)))) ;; TODO: clear
    (status-check
-    ((foreign-lambda* int ((cl_command_queue cq) (cl_mem buffer)
+    ((foreign-lambda* int ((cl_command-queue cq) (cl_mem buffer)
                            (scheme-pointer dst) (size_t offset) (size_t size))
                       "return(clEnqueueReadBuffer(*cq, *buffer, CL_TRUE, offset, size, dst, 0, NULL, NULL));")
      cq buffer (srfi4-vector-blob dst) offset (object-size dst)))
@@ -807,7 +807,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                    (event-allocate)
                    event)))
     (status-check
-     ((foreign-lambda* int ((cl_command_queue cq) (cl_kernel kernel)
+     ((foreign-lambda* int ((cl_command-queue cq) (cl_kernel kernel)
                             (int work_dim) (u64vector gwo) (u64vector gws) (u64vector lws)
                             (unsigned-int num_waitlist) (scheme-pointer waitlist)
                             (cl_event event))
