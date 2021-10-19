@@ -1,10 +1,11 @@
 ;; -*- scheme -*-
 ((author "Kristian Lein-Mathisen")
  (synopsis "Bindings to OpenCL")
- (version "0.1")
+ (version "1.0")
  (license "BSD")
- (category math)
+ (category hell)
  (dependencies)
+ (foreign-dependencies OpenCL)
  (test-dependencies test srfi-18)
  (components (extension opencl
                         (source "opencl-module.scm")

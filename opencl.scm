@@ -4,8 +4,7 @@
         (only chicken.gc set-finalizer!)
         (only chicken.string conc)
         (only chicken.blob make-blob blob? blob->string blob-size)
-        srfi-4
-        srfi-1)
+        srfi-4)
 
 (foreign-declare "
 // TODO: don't hardcode this
@@ -28,9 +27,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (unless (= (* groupsize groups) (u8vector-length v))
     (error "internal error: cannot split u8vector into equal sized parts" groups groupsize))
 
-  (list-tabulate groups (lambda (idx) (subu8vector v ;;  ,-- from
-                                                   (* groupsize idx) ;; ,-- to
-                                                   (+ groupsize (* groupsize idx))))))
+  (map list->u8vector (chop (u8vector->list v) groupsize)))
 
 ;; ==================== errors ====================
 
@@ -338,7 +335,7 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
 
 (define (context-create devices #!key (finalizer (lambda (x) (set-finalizer! x context-release!))))
   (let ((devices (if (pair? devices) devices (list devices)))) ;; list is optional
-    (let* ((concatenated (list->u8vector (append-map (o u8vector->list cl_device-blob) devices)))
+    (let* ((concatenated (list->u8vector (flatten (map (o u8vector->list cl_device-blob) devices))))
            (context (context-allocate)))
       (status-check
        ((foreign-lambda* int ((cl_context context) (u8vector device_list) (size_t num_devices))
