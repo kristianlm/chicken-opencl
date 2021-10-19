@@ -171,10 +171,12 @@ __kernel void test (__global char *out) {
    ;; (test (conc "kernel ran " ke) 'complete (event-status ke))
    ))
 
-(for-each (lambda (device)
-            (test-group
-             (conc "device " device)
-             (test-device device)))
-          (flatten (map platform-devices (platforms))))
+(let ((devices (flatten (map platform-devices (platforms)))))
+  (unless (pair? devices) (error "no opencl platforms to test"))
+  (for-each (lambda (device)
+              (test-group
+               (conc "device " device)
+               (test-device device)))
+            devices))
 
 (test-exit)

@@ -110,15 +110,18 @@ void chicken_opencl_notify_cb(const char *errinfo, const void *private_info, siz
   (let* ((num-platforms (platforms%))
          (blob (make-u8vector (* num-platforms size_cl_platform_id))))
 
-    ;; fill blob with all platforms as demanded by the C API
-    (status-check
-     ((foreign-lambda* int ((int num_platforms) (u8vector dest))
-                       "return (clGetPlatformIDs(num_platforms, (cl_platform_id *)dest, NULL));")
-      num-platforms blob)
-     "clGetPlatformIDs" 'platforms)
+    (if (= num-platforms 0)
+        '()
+        (begin
+          ;; fill blob with all platforms as demanded by the C API
+          (status-check
+           ((foreign-lambda* int ((int num_platforms) (u8vector dest))
+                             "return (clGetPlatformIDs(num_platforms, (cl_platform_id *)dest, NULL));")
+            num-platforms blob)
+           "clGetPlatformIDs" 'platforms)
 
-    ;; go from one big blob into one blob per platform
-    (map make-cl_platform (u8vector-split blob num-platforms size_cl_platform_id))))
+          ;; go from one big blob into one blob per platform
+          (map make-cl_platform (u8vector-split blob num-platforms size_cl_platform_id))))))
 
 (define-foreign-type cl_platform_info int)
 
