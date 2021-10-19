@@ -789,11 +789,11 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 
 (define (kernel-enqueue kernel cq global-work-sizes #!key event wait global-work-offsets local-work-sizes)
 
-  (define (->size_t-vector lst)
+  (define (list->size_t-array lst)
     (cond ((equal? lst #f) #f) ;; NULL is ok
           ((list? lst)
-           (cond ((= 8 (foreign-value "sizeof(size_t)" int)) (list->u64vector lst))
-                 ((= 4 (foreign-value "sizeof(size_t)" int)) (list->u32vector lst))
+           (cond ((= 8 (foreign-value "sizeof(size_t)" int)) (location (list->u64vector lst)))
+                 ((= 4 (foreign-value "sizeof(size_t)" int)) (location (list->u32vector lst)))
                  (else (error "only 4 or 8 bytes supported for size_t, got:" (foreign-value "sizeof(size_t)" int)))))
           (error "expecting proper list of dimension, got " lst)))
 
@@ -810,16 +810,19 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
                    event)))
     (status-check
      ((foreign-lambda* int ((cl_command-queue cq) (cl_kernel kernel)
-                            (int work_dim) (u64vector gwo) (u64vector gws) (u64vector lws)
+                            (int work_dim)
+                            ((c-pointer "size_t") gwo)
+                            ((c-pointer "size_t") gws)
+                            ((c-pointer "size_t") lws)
                             (unsigned-int num_waitlist) (scheme-pointer waitlist)
                             (cl_event event))
                        "return(clEnqueueNDRangeKernel(*cq, *kernel, work_dim, gwo, gws, lws,
                                                       num_waitlist, (cl_event*)waitlist, event));")
       cq kernel
       (length global-work-sizes) ;; dimensions
-      (->size_t-vector global-work-offsets)
-      (->size_t-vector global-work-sizes)
-      (->size_t-vector local-work-sizes)
+      (list->size_t-array global-work-offsets)
+      (list->size_t-array global-work-sizes)
+      (list->size_t-array local-work-sizes)
       (if wait (length wait) 0) (and wait (apply conc (map cl_event-blob wait)))
       event)
      "clEnqueueNDRangeKernel" 'kernel-enqueue)
