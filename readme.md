@@ -77,7 +77,8 @@ __kernel void foo(__global float *out) {
 ```
 
 When run, it should output `#f32(0.0 10.0 20.0 30.0 -1.0)`. The last
-`-1` is leftovers from buffer creation.
+`-1` is leftovers from buffer creation. More examples can be found in
+the [examples](examples/) folder.
 
 ## API
 
