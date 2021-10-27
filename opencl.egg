@@ -10,4 +10,6 @@
  (components (extension opencl
                         (source "opencl-module.scm")
                         (source-dependencies "opencl.scm")
-                        (link-options "-L" "-lOpenCL"))))
+                        (cond-expand
+                         (macosx (link-options "-L" "-framework OpenCL"))
+                         (else   (link-options "-L" "-lOpenCL"))))))
