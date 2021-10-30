@@ -604,7 +604,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 (define (mem-allocate type)
   (make-cl_mem (make-u8vector (foreign-value "sizeof(cl_mem)" int)) type))
 
-(define (buffer-create* context size type flags finalizer)
+(define (buffer-create* size context type flags finalizer)
   (let* ((mem (mem-allocate type)))
     (status-check
      ((foreign-lambda* int ((cl_context context) (unsigned-long flags) (size_t size) (cl_mem mem))
@@ -615,17 +615,17 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
      "clCreateBuffer" 'buffer-create)
     (finalizer mem)))
 
-(define (buffer-create cq/context source/size
+(define (buffer-create source/size cq/context
                        #!key (flags 0) (type #f)
                        (finalizer (lambda (x) (set-finalizer! x mem-release!))))
   (if (cl_command-queue? cq/context)
       (let* ((source source/size)
              (cq cq/context)
              (context (command-queue-context cq))
-             (buffer (buffer-create* context
-                                     (if (integer? source)
+             (buffer (buffer-create* (if (integer? source)
                                          source
                                          (object-size source))
+                                     context
                                      (or type
                                          (if (integer? source)
                                              'blob
@@ -637,7 +637,7 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
       (let ()
         (unless (integer? source/size)
           (error 'buffer-create "invalid buffer size (try giving command-queue instead of context)" source/size))
-        (buffer-create* cq/context source/size (or type 'blob) flags finalizer))))
+        (buffer-create* source/size cq/context (or type 'blob) flags finalizer))))
 
 (define buffer-size mem-size)
 (define buffer-type

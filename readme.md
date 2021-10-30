@@ -65,7 +65,7 @@ useful:
 (define device (car (flatten (map platform-devices (platforms)))))
 (define context (context-create device))
 (define cq (command-queue-create context device))
-(define buffer (buffer-create cq (f32vector -1 -1 -1 -1 -1)))
+(define buffer (buffer-create (f32vector -1 -1 -1 -1 -1) cq))
 (define kernel (kernel-create (program-build (program-create context "
 __kernel void foo(__global float *out) {
   out[get_global_id(0)] = get_global_id(0) * 10;
@@ -129,15 +129,15 @@ page](https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/clCreateCom
 
 Get back the `cl_context` passed into `command-queue-create`.
 
-    [procedure] (buffer-create c s #!key (type #f) (flags 0) (finalizer #t)) => cl_mem
+    [procedure] (buffer-create s c #!key (type #f) (flags 0) (finalizer #t)) => cl_mem
     [procedure] (buffer-release! buffer) => void
 
 Create or release an OpenCL buffer object, a memory chunk that is
 usually stored on the target device. See [this
 page](https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/clCreateBuffer.html).
 
-If `c` is a `cl_context`, `s` must be an integer representing the
-buffer size in bytes.
+If `c` is a `cl_context`, `s` (s for source) must be an integer
+representing the buffer size in bytes.
 
 If `c` is a `cl_command-queue`, `s` must be a srfi-4 vector or a
 blob. The content of `s` is copied to the newly created buffer
@@ -229,7 +229,7 @@ kernel argument. For example, the arguments to `__kernel foo(long4 a, float *res
 
 ```scheme
 (kernel-arg-set! kernel 0 (s64vector 1 2 3 4))
-(kernel-arg-set! kernel 1 (buffer-create ctx (* 4 1000) type: 'f32))
+(kernel-arg-set! kernel 1 (buffer-create (* 4 1000) ctx type: 'f32))
 ```
 
     [procedure] (kernel-enqueue kernel cq global-work-sizes #!key event wait global-work-offsets local-work-sizes) => (or cl_event #f)

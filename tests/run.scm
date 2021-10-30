@@ -9,7 +9,7 @@
 
   (test context (command-queue-context cq))
 
-  (define A (buffer-create cq (u32vector 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)))
+  (define A (buffer-create (u32vector 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16) cq))
 
   (test-group
    "buffer-write and buffer-read"
@@ -68,13 +68,13 @@ __kernel void tt(__global uint *A) {
   (test-group
    "datatype conversion"
 
-   (test "buffer with no type"         'blob (buffer-type (buffer-create context 32)))
-   (test "buffer with explicit type"     'u8 (buffer-type (buffer-create context 32 type: 'u8)))
-   (test "buffer by srfi4 vector type"  'f32 (buffer-type (buffer-create cq (f32vector 1 2))))
-   (test "buffer by srfi4 vector type"  'f64 (buffer-type (buffer-create cq (f64vector 1 2))))
-   (test "buffer by srfi4 vector type"  'u64 (buffer-type (buffer-create cq (u64vector 1 2))))
+   (test "buffer with no type"         'blob (buffer-type (buffer-create 32 context)))
+   (test "buffer with explicit type"     'u8 (buffer-type (buffer-create 32 context type: 'u8)))
+   (test "buffer by srfi4 vector type"  'f32 (buffer-type (buffer-create (f32vector 1 2) cq)))
+   (test "buffer by srfi4 vector type"  'f64 (buffer-type (buffer-create (f64vector 1 2) cq)))
+   (test "buffer by srfi4 vector type"  'u64 (buffer-type (buffer-create (u64vector 1 2) cq)))
 
-   (define b (buffer-create cq (s32vector 1 2)))
+   (define b (buffer-create (s32vector 1 2) cq))
    (test "buffer-type match" 's32 (buffer-type b))
 
    (test "implicit buffer-type" (s32vector 1 2) (buffer-read b cq))
@@ -99,8 +99,8 @@ __kernel void test_float(float a1, float4 a4, __global float *out) { *out = a1 +
    (define test_short (kernel-create program "test_short"))
    (define test_int   (kernel-create program "test_int"))
    (define test_float (kernel-create program "test_float"))
-   (define out (buffer-create context 4)) ;; <-- plenty of room for everybody
-   (define out (buffer-create cq 4)) ;; you can supply cq too, but only its context is used
+   (define out (buffer-create 4 context)) ;; <-- plenty of room for everybody
+   (define out (buffer-create 4 cq)) ;; you can supply cq too, but only its context is used
 
    (begin
      (kernel-arg-set! test_char 0 (s8vector 11))
@@ -135,7 +135,7 @@ __kernel void test_float(float a1, float4 a4, __global float *out) { *out = a1 +
 __kernel void test (__global char *out) {
  *out = 1;
 }") device) "test"))
-   (define out (buffer-create context 1 type: 'u8))
+   (define out (buffer-create 1 context type: 'u8))
    (buffer-write out cq (u8vector 0))
    (define myevent (event-create context))
    (kernel-arg-set! kernel 0 out)

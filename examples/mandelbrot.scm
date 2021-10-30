@@ -6,7 +6,7 @@
 (define cq (command-queue-create context device))
 (define w 3840)
 (define h 2160)
-(define out (buffer-create cq (* 1 w h)))
+(define out (buffer-create (* 1 w h) cq))
 
 (let ((kernel (kernel-create
                (program-build
