@@ -117,9 +117,21 @@
     
     (buffer-write b cq o)))
 
+(define (minmax buffer)
+  (let* ((vec (buffer-read buffer cq ))
+         (lst (f32vector->list vec))
+         (mx (foldl max -1e6 lst))
+         (mn (foldl min +1e6 lst)))
+    (list mn mx)))
+
+(begin
+  (rho w h f r u)
+  (minmax u))
+
 (let ()
   (rho w h f r u)
   (speed w h f s)
+  (define u_ (buffer-read u cq))
   (define r_ (buffer-read r cq))
   (define s_ (buffer-read s cq))
   (define rlst (f32vector->list r_))
@@ -127,13 +139,13 @@
   (set! rmx (+ (foldl max -1e6 rlst) 0.1))
   (set! rmn (foldl min 1e6 rlst))
 
-  (print
-   " r"(list rmn rmx)   "\n"
-   " s"(list (foldl min 1e6 slst) (foldl max -1e6 slst)))
+  (fmt #t
+   " u" (minmax u) nl
+   " r" (list rmn rmx) nl
+   " s" (list (foldl min 1e6 slst) (foldl max -1e6 slst)) nl)
 
   (set! rmn 0.9)
-  (set! rmx 1.3)
-  )
+  (set! rmx 1.3))
 
 (define (save-file) (with-output-to-file  "out.u8" (lambda () (write-u8vector (buffer-read b cq)))))
 (define (load-file) (with-input-from-file "out.u8" (lambda () (buffer-write b cq (read-u8vector)))))

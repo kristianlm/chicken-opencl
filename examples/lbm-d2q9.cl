@@ -12,7 +12,7 @@ float Rho(lattice *F) {
   return F->n + F->N + F->S + F->E + F->W + F->NW + F->NE + F->SW + F->SE;
 }
 
-lattice equilibrium(float2 u, float newrho) {
+lattice equilibrium(float2 u, float rho) {
   float ux3 = 3 * u.x;
   float uy3 = 3 * u.y;
   float ux2 = u.x * u.x;
@@ -24,15 +24,15 @@ lattice equilibrium(float2 u, float newrho) {
   float one9th = 1/9.0, one36th = 1/36.0;
   
   return (lattice){
-    .n=   (4.0/9) * newrho * (1                              - u215),
-    .E=    one9th * newrho * (1 + ux3       + 4.5*ux2        - u215),
-    .W=    one9th * newrho * (1 - ux3       + 4.5*ux2        - u215),
-    .N=    one9th * newrho * (1 - uy3       + 4.5*uy2        - u215),
-    .S=    one9th * newrho * (1 + uy3       + 4.5*uy2        - u215),
-    .NE=   one36th * newrho * (1 + ux3 - uy3 + 4.5*(u2-uxuy2) - u215),
-    .SE=   one36th * newrho * (1 + ux3 + uy3 + 4.5*(u2+uxuy2) - u215),
-    .NW=   one36th * newrho * (1 - ux3 - uy3 + 4.5*(u2+uxuy2) - u215),
-    .SW=   one36th * newrho * (1 - ux3 + uy3 + 4.5*(u2-uxuy2) - u215)
+    .n=   (4.0/9) * rho * (1                              - u215),
+    .E=    one9th  * rho * (1 + ux3       + 4.5*ux2        - u215),
+    .W=    one9th  * rho * (1 - ux3       + 4.5*ux2        - u215),
+    .N=    one9th  * rho * (1 - uy3       + 4.5*uy2        - u215),
+    .S=    one9th  * rho * (1 + uy3       + 4.5*uy2        - u215),
+    .NE=   one36th * rho * (1 + ux3 - uy3 + 4.5*(u2-uxuy2) - u215),
+    .SE=   one36th * rho * (1 + ux3 + uy3 + 4.5*(u2+uxuy2) - u215),
+    .NW=   one36th * rho * (1 - ux3 - uy3 + 4.5*(u2+uxuy2) - u215),
+    .SW=   one36th * rho * (1 - ux3 + uy3 + 4.5*(u2-uxuy2) - u215)
   };
 }
 
