@@ -11,8 +11,7 @@
 (define h     (string->number (cadr  (command-line-arguments))))
 (define scale (string->number (caddr (command-line-arguments))))
 (define frame 0)
-(define viscosity 0.1)
-(define sim-steps 16)
+(define sim-steps 1)
 (define paused? #f)
 
 (define device (cadr (values (flatten (map (cut platform-devices <> 'gpu) (platforms))))))
@@ -20,168 +19,47 @@
 (define context (context-create device))
 (define cq (command-queue-create context device))
 
-(define (ü lattice)
-
-  (let* ((n (f32vector-ref lattice 0)) 
-         (E (f32vector-ref lattice 1)) 
-         (W (f32vector-ref lattice 2)) 
-         (N (f32vector-ref lattice 3)) 
-         (S (f32vector-ref lattice 4)) 
-         (NE (f32vector-ref lattice 5))
-         (SE (f32vector-ref lattice 6))
-         (NW (f32vector-ref lattice 7))
-         (SW (f32vector-ref lattice 8))
-         (rho (+ E W N S NE SE NW SW)))
-    (f32vector (/ (- (+ E NE SE) W NW SW) rho)
-               (/ (- (+ S SE SW) N NE NW) rho))))
-
 (define (load-kernel)
 
   (define program (program-build (program-create context "#include \"lbm-d2q9.cl\"") device))
 
-  (set! collide
-    (let ((kernel (kernel-create program "collide")))
-      (lambda (w h Ω f)
+  (set! ripple
+    (let ((kernel (kernel-create program "ripple")))
+      (lambda (w h src dst)
         (kernel-arg-set! kernel 0 (u32vector w h))
-        (kernel-arg-set! kernel 1 (f32vector Ω))
-        (kernel-arg-set! kernel 2 f)
+        (kernel-arg-set! kernel 1 src)
+        (kernel-arg-set! kernel 2 dst)
+        (kernel-enqueue kernel cq (list w h)))))  
+
+  (set! render
+    (let ((kernel (kernel-create program "render")))
+      (lambda (w h src image)
+        (kernel-arg-set! kernel 0 (u32vector w h))
+        (kernel-arg-set! kernel 1 src)
+        (kernel-arg-set! kernel 2 image)
         (kernel-enqueue kernel cq (list w h)))))
 
-  (set! stream
-    (let ((kernel (kernel-create program "stream")))
-      (lambda (w h f f0 barrier)
+  (set! reset
+    (let ((kernel (kernel-create program "reset")))
+      (lambda (w h v src)
         (kernel-arg-set! kernel 0 (u32vector w h))
-        (kernel-arg-set! kernel 1 f)
-        (kernel-arg-set! kernel 2 f0)
-        (kernel-arg-set! kernel 3 barrier)
-        (kernel-enqueue kernel cq (list w h)))))
-
-  (set! rho
-    (let ((kernel (kernel-create program "rho")))
-      (lambda (w h f rho u)
-        (kernel-arg-set! kernel 0 (u32vector w h))
-        (kernel-arg-set! kernel 1 f)
-        (kernel-arg-set! kernel 2 rho)
-        (kernel-arg-set! kernel 3 u)
-        (kernel-enqueue kernel cq (list w h)))))
-
-  (set! speed
-    (let ((kernel (kernel-create program "speed")))
-      (lambda (w h f speed)
-        (kernel-arg-set! kernel 0 (u32vector w h))
-        (kernel-arg-set! kernel 1 f)
-        (kernel-arg-set! kernel 2 speed)
-        (kernel-enqueue kernel cq (list w h)))))
-
-  (set! corner
-    (let ((kernel (kernel-create program "corner")))
-      (lambda (w h f)
-        (kernel-arg-set! kernel 0 (u32vector w h))
-        (kernel-arg-set! kernel 1 f)
-        (kernel-enqueue kernel cq (list w h)))))
-
-  (set! initialize
-    (let ((kernel (kernel-create program "initialize")))
-      (lambda (w h u rho f) ;; u is complex number for 2d velocity
-        (kernel-arg-set! kernel 0 (u32vector w h))
-        (kernel-arg-set! kernel 1 (f32vector (real-part u) (imag-part u)))
-        (kernel-arg-set! kernel 2 (f32vector rho))
-        (kernel-arg-set! kernel 3 f)
-        (kernel-enqueue kernel cq (list w h)))))
-
-  (set! visualize
-    (let ((kernel (kernel-create program "visualize")))
-      (lambda (w h rmin rmax sscale f barrier image)
-        (kernel-arg-set! kernel 0 (u32vector w h))
-        (kernel-arg-set! kernel 1 (f32vector rmin rmax))
-        (kernel-arg-set! kernel 2 (f32vector sscale))
-        (kernel-arg-set! kernel 3 f)
-        (kernel-arg-set! kernel 4 barrier)
-        (kernel-arg-set! kernel 5 image)
+        (kernel-arg-set! kernel 1 (f32vector v))
+        (kernel-arg-set! kernel 2 src)
         (kernel-enqueue kernel cq (list w h))))))
 
 (load-kernel)
 
 (define bhost (make-u8vector (* w h) 0))
 
-(define f  (buffer-create (make-f32vector (* w h 9)) cq))
-(define f0 (buffer-create (make-f32vector (* w h 9) 1) cq))
-(define b  (buffer-create bhost cq))
-(define r  (buffer-create (make-f32vector (* w h 1) 0) cq))
-(define u  (buffer-create (make-f32vector (* w h 2) 0) cq))
-(define s  (buffer-create (make-f32vector (* w h 1) 0) cq))
-
-(define (reset!)
-  (initialize w h 0 1 f))
-
-(reset!)
-
+(define src (buffer-create (make-f32vector (* w h) 0) cq))
+(define dst (buffer-create (make-f32vector (* w h) 0) cq))
 (define image (buffer-create (make-u32vector (* w h) 1) cq))
 
-;; (fmt #t (fix 2 (fmt-join (cut fmt-join dsp <> (dsp " ")) (chop (f32vector->list (buffer-read u cq)) w) nl)))
+(define (reset!)
+  (reset w h 0 dst)
+  (reset w h 0 src))
 
-(begin
-  
-  (define b  (buffer-create (make-u8vector (* w h) 0) cq))
-  (let ((o (buffer-read b cq)))
-
-    (do ((y (* h 3/8) (+ y 1)))
-        ((>= y (* h 5/8)))
-      (let ((x 100))
-        (u8vector-set! o (+ x (* w y)) 1)))
-
-    ;; (do ((x 55 (+ x 1)))
-    ;;     ((>= x 300))
-    ;;   (u8vector-set! o (+ x (* w (* 3/8 h))) 1)
-    ;;   ;;(when (< x (* 5/8 w)) (u8vector-set! o (+ x (* w 100)) 1))
-    ;;   (u8vector-set! o (+ x (* w (* 5/8 h))) 1))
-    
-    (buffer-write b cq o)))
-
-(define (minmax buffer)
-  (let* ((vec (buffer-read buffer cq ))
-         (lst (f32vector->list vec))
-         (mx (foldl max -1e6 lst))
-         (mn (foldl min +1e6 lst)))
-    (list mn mx)))
-
-(begin
-  (rho w h f r u)
-  (minmax u))
-
-(let ()
-  (rho w h f r u)
-  (speed w h f s)
-  (define u_ (buffer-read u cq))
-  (define r_ (buffer-read r cq))
-  (define s_ (buffer-read s cq))
-  (define rlst (f32vector->list r_))
-  (define slst (f32vector->list s_))
-  (set! rmx (+ (foldl max -1e6 rlst) 0.1))
-  (set! rmn (foldl min 1e6 rlst))
-
-  (fmt #t
-   " u" (minmax u) nl
-   " r" (list rmn rmx) nl
-   " s" (list (foldl min 1e6 slst) (foldl max -1e6 slst)) nl)
-
-  (set! rmn 0.9)
-  (set! rmx 1.3))
-
-(define (filename) (conc "barrier-" w "x" h ".png"))
-(define (save-file) (with-output-to-file  (filename) (lambda () (write-u8vector (buffer-read b cq)))))
-(define (load-file) (with-input-from-file (filename) (lambda () (buffer-write b cq (read-u8vector)))))
-
-(define (save-file) (with-output-to-file (filename) (lambda () (write-png (buffer-read b cq) w h 1))))
-(define (load-file)
-  (with-input-from-file (filename)
-    (lambda ()
-      (receive (pixels W H C) (read-image)
-        (unless (and (= W w) (= H h) (= C 1))
-          (error
-           (conc "error while reading" (filename) ": expected " (list w h 1)
-                 "got " (list W H C))))
-        (buffer-write b cq pixels)))))
+(reset!)
 
 (define maybe-load-kernels
   (let ((last-mod-time #f)
@@ -195,8 +73,6 @@
             (print "kernels changed!")
             (load-kernel)))))))
 
-(buffer-read f cq bytes: (* 4 9))
-
 (define (game-loop)
   (maybe-load-kernels)
 
@@ -205,73 +81,36 @@
   (define mx (min (- w 1) (max 0 (inexact->exact (floor (/ (- (mouse-x) 1) scale))))))
   (define my (min (- h 1) (max 0 (inexact->exact (floor (/ (- (mouse-y) 1) scale))))))
 
-  (when (or (mouse-button-down? 0)
-            (mouse-button-down? 1))
-    (let ((data (buffer-read b cq)))
-      
-      (define (pset! x y v)
-        (when (and (>= x 0) (>= y 0) (< x w) (< y h))
-          (u8vector-set! data (+ x (* w y)) v)))
-
-      (pset! (+ 0 mx) (+ 0 my) (if (mouse-button-down? 0) 255 0))
-      (pset! (+ 0 mx) (+ 1 my) (if (mouse-button-down? 0) 255 0))
-      (pset! (+ 1 mx) (+ 0 my) (if (mouse-button-down? 0) 255 0))
-      (pset! (+ 1 mx) (+ 1 my) (if (mouse-button-down? 0) 255 0))
-      (buffer-write b cq data)))
-
   (when (key-down? (char->integer #\R))
     (reset!))
 
   (when (key-pressed? (char->integer #\space))
     (set! paused? (not paused?)))
 
-  (when (key-pressed? (char->integer #\S)) (save-file))
-  (when (key-pressed? (char->integer #\L)) (load-file))
-
   ;; ==================== simulation ====================
   
   (define (maybe-external)
-    (when (mouse-button-down? 2)
-      (let ()
-        (define f1 (buffer-read f cq bytes: (* 4 9) byte-offset: (* 4 9 (+ mx (* w my)))))
-        (define rho (+ (foldl + 0 (f32vector->list f1)) 0.00001))
-        (buffer-write f cq (equilibrium .5+0i rho)
-                      offset: (* 9 4 (+ mx (* w my)))))))
+    (when (mouse-button-down? 0)
+      (buffer-write src cq (f32vector 150) offset: (* 4 (+ mx (* w my))))))
 
   (maybe-external)
+
   (when (or (not paused?) (key-pressed? (char->integer #\O)))
     (let loop ((n (if paused? 1 sim-steps)))
       (set! frame (+ frame 1))
-      ;;(unless (= n 0) (maybe-external))
-      (collide w h (begin (/ 1 (+ (* 3 viscosity) 1)) 1.9) f)
-      (let ((tmp f)) (stream w h f f0 b) (set! f f0) (set! f0 tmp))
+      (begin (ripple w h src dst) (let ((t src)) (set! src dst) (set! dst t)))
       (when (> n 1) (loop (+ n -1)))))
 
-  (define (draw-lattice p #!optional (x 80))
+  (let* ((s (f32vector->list (buffer-read src cq bytes: 4 byte-offset: (* 4 (+ mx (* w my))))))
+         (d (f32vector->list (buffer-read dst cq bytes: 4 byte-offset: (* 4 (+ mx (* w my)))))))
     (define (emit n) (fmt #f (fix 5 n)))
-    (let ((>> 80) (<< -80) (ß scale))
-      (draw-text (emit (f32vector-ref p 0)) (+ x  0) (+ (* ß h) (+ 50   0)) 10 #xffffffff)
-      (draw-text (emit (f32vector-ref p 1)) (+ x >>) (+ (* ß h) (+ 50   0)) 10 #xff00ffff)
-      (draw-text (emit (f32vector-ref p 2)) (+ x <<) (+ (* ß h) (+ 50   0)) 10 #xff00ffff)
-      (draw-text (emit (f32vector-ref p 3)) (+ x  0) (+ (* ß h) (+ 50 -10)) 10 #xff00ffff)
-      (draw-text (emit (f32vector-ref p 4)) (+ x  0) (+ (* ß h) (+ 50 +10)) 10 #xff00ffff)
-      (draw-text (emit (f32vector-ref p 5)) (+ x >>) (+ (* ß h) (+ 50 -10)) 10 #xff00aaff)
-      (draw-text (emit (f32vector-ref p 6)) (+ x >>) (+ (* ß h) (+ 50 +10)) 10 #xff00aaff)
-      (draw-text (emit (f32vector-ref p 7)) (+ x <<) (+ (* ß h) (+ 50 -10)) 10 #xff00aaff)
-      (draw-text (emit (f32vector-ref p 8)) (+ x <<) (+ (* ß h) (+ 50 +10)) 10 #xff00aaff)
-      (draw-text (emit (foldl + 0 (f32vector->list p))) (+ x >> >>) (+ (* ß h) (+ 50 -5)) 20 #xff8080ff)))
+    (draw-text (fmt #f "fps " (fps) " f" frame " " mx " " my) 1 (* scale h) 20 #xff0000ff)
+    (draw-text (fmt #f (fix 5 "s " s)) 1 (+ (* scale h) 20) 20 #xff00ff00)
+    (draw-text (fmt #f (fix 5 "d " d)) 1 (+ (* scale h) 40) 20 #xff00ff00))
 
-  (let* ((bb  (buffer-read b  cq bytes: 1 byte-offset: (+ mx (* w my))))
-         (ff  (buffer-read f  cq bytes: (* 4 9) byte-offset: (* 4 9 (+ mx (* w my)))))
-         (ff0 (buffer-read f0 cq bytes: (* 4 9) byte-offset: (* 4 9 (+ mx (* w my))))))
-    (draw-lattice ff0)    (draw-text (fmt #f "old" ) 90 (+ (* scale h) 30) 10 #xffffffff)
-    (draw-lattice ff 420) (draw-text (fmt #f "new " (ü ff)) 430 (+ (* scale h) 30) 10 #xffffffff)
-    (draw-text (conc "fps " (fps) " f" frame " " mx " " my) 1 (* scale h) 20 #xff0000ff))
-
-  (visualize w h rmn rmx 1000 f b image)
+  (render w h src image)
   (let ((u32 (buffer-read image cq)))
     (if (< 250 (remainder (current-milliseconds) 500)) (u32vector-set! u32 (+ mx (* w my)) #xff00ffff))
     (mypixels w h u32)))
 
-(print "DONE!")
 
