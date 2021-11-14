@@ -1,18 +1,39 @@
 (import srfi-4 opencl fmt clojurian.syntax test srfi-18
-        chicken.string chicken.port chicken.file.posix chicken.time)
+        chicken.string
+        chicken.port
+        chicken.file.posix
+        chicken.time
+        chicken.condition
+        chicken.process-context
+        stb-image-write stb-image)
 
-(define w (begin 1920 200 512 120 1200))
-(define h (begin 1080  80 256  66 800))
-(define scale 1)
+(define w     (string->number (car   (command-line-arguments))))
+(define h     (string->number (cadr  (command-line-arguments))))
+(define scale (string->number (caddr (command-line-arguments))))
 (define frame 0)
 (define viscosity 0.1)
-(define sim-steps 20)
+(define sim-steps 16)
 (define paused? #f)
 
-(define device (car (reverse (values (flatten (map (cut platform-devices <> 'gpu) (platforms)))))))
+(define device (cadr (values (flatten (map (cut platform-devices <> 'gpu) (platforms))))))
 (print device)
 (define context (context-create device))
 (define cq (command-queue-create context device))
+
+(define (ü lattice)
+
+  (let* ((n (f32vector-ref lattice 0)) 
+         (E (f32vector-ref lattice 1)) 
+         (W (f32vector-ref lattice 2)) 
+         (N (f32vector-ref lattice 3)) 
+         (S (f32vector-ref lattice 4)) 
+         (NE (f32vector-ref lattice 5))
+         (SE (f32vector-ref lattice 6))
+         (NW (f32vector-ref lattice 7))
+         (SW (f32vector-ref lattice 8))
+         (rho (+ E W N S NE SE NW SW)))
+    (f32vector (/ (- (+ E NE SE) W NW SW) rho)
+               (/ (- (+ S SE SW) N NE NW) rho))))
 
 (define (load-kernel)
 
@@ -147,8 +168,20 @@
   (set! rmn 0.9)
   (set! rmx 1.3))
 
-(define (save-file) (with-output-to-file  "out.u8" (lambda () (write-u8vector (buffer-read b cq)))))
-(define (load-file) (with-input-from-file "out.u8" (lambda () (buffer-write b cq (read-u8vector)))))
+(define (filename) (conc "barrier-" w "x" h ".png"))
+(define (save-file) (with-output-to-file  (filename) (lambda () (write-u8vector (buffer-read b cq)))))
+(define (load-file) (with-input-from-file (filename) (lambda () (buffer-write b cq (read-u8vector)))))
+
+(define (save-file) (with-output-to-file (filename) (lambda () (write-png (buffer-read b cq) w h 1))))
+(define (load-file)
+  (with-input-from-file (filename)
+    (lambda ()
+      (receive (pixels W H C) (read-image)
+        (unless (and (= W w) (= H h) (= C 1))
+          (error
+           (conc "error while reading" (filename) ": expected " (list w h 1)
+                 "got " (list W H C))))
+        (buffer-write b cq pixels)))))
 
 (define maybe-load-kernels
   (let ((last-mod-time #f)
@@ -180,10 +213,10 @@
         (when (and (>= x 0) (>= y 0) (< x w) (< y h))
           (u8vector-set! data (+ x (* w y)) v)))
 
-      (pset! (+ 0 mx) (+ 0 my) (if (mouse-button-down? 0) 1 0))
-      (pset! (+ 0 mx) (+ 1 my) (if (mouse-button-down? 0) 1 0))
-      (pset! (+ 1 mx) (+ 0 my) (if (mouse-button-down? 0) 1 0))
-      (pset! (+ 1 mx) (+ 1 my) (if (mouse-button-down? 0) 1 0))
+      (pset! (+ 0 mx) (+ 0 my) (if (mouse-button-down? 0) 255 0))
+      (pset! (+ 0 mx) (+ 1 my) (if (mouse-button-down? 0) 255 0))
+      (pset! (+ 1 mx) (+ 0 my) (if (mouse-button-down? 0) 255 0))
+      (pset! (+ 1 mx) (+ 1 my) (if (mouse-button-down? 0) 255 0))
       (buffer-write b cq data)))
 
   (when (key-down? (char->integer #\R))
@@ -231,8 +264,8 @@
   (let* ((bb  (buffer-read b  cq bytes: 1 byte-offset: (+ mx (* w my))))
          (ff  (buffer-read f  cq bytes: (* 4 9) byte-offset: (* 4 9 (+ mx (* w my)))))
          (ff0 (buffer-read f0 cq bytes: (* 4 9) byte-offset: (* 4 9 (+ mx (* w my))))))
-    (draw-lattice ff0)    (draw-text "old" 90 (+ (* scale h) 30) 10 #xffffffff)
-    (draw-lattice ff 420) (draw-text "new" 430 (+ (* scale h) 30) 10 #xffffffff)
+    (draw-lattice ff0)    (draw-text (fmt #f "old" ) 90 (+ (* scale h) 30) 10 #xffffffff)
+    (draw-lattice ff 420) (draw-text (fmt #f "new " (ü ff)) 430 (+ (* scale h) 30) 10 #xffffffff)
     (draw-text (conc "fps " (fps) " f" frame " " mx " " my) 1 (* scale h) 20 #xff0000ff))
 
   (visualize w h rmn rmx 1000 f b image)
@@ -241,6 +274,4 @@
     (mypixels w h u32)))
 
 (print "DONE!")
-
-
 

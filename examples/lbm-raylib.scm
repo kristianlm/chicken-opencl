@@ -17,7 +17,7 @@ unsigned long frame = 0;
 
 int myinit() {
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  InitWindow(1024, 600 + 21, \"lbm-d2q9 [floating]\");
+  InitWindow(1024, 800 + 21, \"lbm-d2q9 [floating]\");
   SetWindowPosition(880, 80);
   SetTargetFPS(60);
 }

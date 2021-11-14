@@ -46,37 +46,21 @@ kernel void collide(int2 size, float omega, global lattice *f) {
   float2 u = (float2)((F.E + F.NE + F.SE - F.W - F.NW - F.SW) / rho,
                       (F.S + F.SE + F.SW - F.N - F.NE - F.NW ) / rho);
 
-
-  if(x == 1) { // || y == 0 || x == size.x-1 || y == size.y-1) {// y > 120 && y < 130) {
-    f[i] = equilibrium((float2)(0.1f, 0.0f), rho);
+  if(x == 1) { // inlet
+    f[i] = equilibrium((float2)(0.01f, 0.0f), rho);
   }
-  //else 
   else {
-    float one9thrho = rho / 9.0;
-    float one36thrho = rho / 36.0;
-    float ux3 = 3 * u.x;
-    float uy3 = 3 * u.y;
-    float ux2 = u.x * u.x;
-    float uy2 = u.y * u.y;
-    float uxuy2 = 2 * u.x * u.y;
-    float u2 = ux2 + uy2;
-    float u215 = 1.5 * u2;
-    f[i].n  = fmin((float)fmax((float)(F.n  + (omega * ((4.0f/9.0f)*rho * (1                           - u215) - F.n ))), 0.0001f), 2.0f);
-    f[i].E  = fmin((float)fmax((float)(F.E  + (omega * (   one9thrho * (1 + ux3       + 4.5*ux2        - u215) - F.E ))), 0.0001f), 2.0f);
-    f[i].W  = fmin((float)fmax((float)(F.W  + (omega * (   one9thrho * (1 - ux3       + 4.5*ux2        - u215) - F.W ))), 0.0001f), 2.0f);
-    f[i].N  = fmin((float)fmax((float)(F.N  + (omega * (   one9thrho * (1 + uy3       + 4.5*uy2        - u215) - F.N ))), 0.0001f), 2.0f);
-    f[i].S  = fmin((float)fmax((float)(F.S  + (omega * (   one9thrho * (1 - uy3       + 4.5*uy2        - u215) - F.S ))), 0.0001f), 2.0f);
-    f[i].NE = fmin((float)fmax((float)(F.NE + (omega * (  one36thrho * (1 + ux3 + uy3 + 4.5*(u2+uxuy2) - u215) - F.NE))), 0.0001f), 2.0f);
-    f[i].SE = fmin((float)fmax((float)(F.SE + (omega * (  one36thrho * (1 + ux3 - uy3 + 4.5*(u2-uxuy2) - u215) - F.SE))), 0.0001f), 2.0f);
-    f[i].NW = fmin((float)fmax((float)(F.NW + (omega * (  one36thrho * (1 - ux3 + uy3 + 4.5*(u2-uxuy2) - u215) - F.NW))), 0.0001f), 2.0f);
-    f[i].SW = fmin((float)fmax((float)(F.SW + (omega * (  one36thrho * (1 - ux3 - uy3 + 4.5*(u2+uxuy2) - u215) - F.SW))), 0.0001f), 2.0f);
+    lattice eq = equilibrium(u, rho);
+    f[i].n  = /*fmin(*/fmax(F.n  + (omega * (eq.n  - F.n )), 0.0001f);//, 2.0f);
+    f[i].E  = /*fmin(*/fmax(F.E  + (omega * (eq.E  - F.E )), 0.0001f);//, 2.0f);
+    f[i].W  = /*fmin(*/fmax(F.W  + (omega * (eq.W  - F.W )), 0.0001f);//, 2.0f);
+    f[i].N  = /*fmin(*/fmax(F.N  + (omega * (eq.N  - F.N )), 0.0001f);//, 2.0f);
+    f[i].S  = /*fmin(*/fmax(F.S  + (omega * (eq.S  - F.S )), 0.0001f);//, 2.0f);
+    f[i].NE = /*fmin(*/fmax(F.NE + (omega * (eq.NE - F.NE)), 0.0001f);//, 2.0f);
+    f[i].SE = /*fmin(*/fmax(F.SE + (omega * (eq.SE - F.SE)), 0.0001f);//, 2.0f);
+    f[i].NW = /*fmin(*/fmax(F.NW + (omega * (eq.NW - F.NW)), 0.0001f);//, 2.0f);
+    f[i].SW = /*fmin(*/fmax(F.SW + (omega * (eq.SW - F.SW)), 0.0001f);//, 2.0f);
   }
-
-  // if(x == size.x - 1) {
-  //   f[i].W = f[x-1 + y*size.x].W;
-  //   f[i].NW = f[x-1 + y*size.x].NW;
-  //   f[i].SW = f[x-1 + y*size.x].SW;
-  // }
 }
 
 #define CELL(f, deltax, deltay) (&f[(pos.x+(deltax) + ((pos.y+(deltay))*size.x))])
@@ -107,7 +91,7 @@ kernel void stream(int2 size, global const lattice *f, global lattice *f0, globa
   CELL(f0, 0, 0)->NE = CELL(f, xm, yp)->NE;
   CELL(f0, 0, 0)->NW = CELL(f, xp, yp)->NW;
 
-  if(pos.x == size.x-2) return;
+  if(pos.x == size.x-2) return; // outlet
 
   if(BARRIER(xm,  0)) { CELL(f0, 0, 0)->E  = CELL(f, xp,  0)->W;}
   if(BARRIER( 0, ym)) { CELL(f0, 0, 0)->S  = CELL(f,  0, yp)->N;}
@@ -117,11 +101,6 @@ kernel void stream(int2 size, global const lattice *f, global lattice *f0, globa
   if(BARRIER(xp, ym)) { CELL(f0, 0, 0)->SW = CELL(f, xm, yp)->NE;}
   if(BARRIER(xm, yp)) { CELL(f0, 0, 0)->NE = CELL(f, xp, ym)->SW;}
   if(BARRIER(xp, yp)) { CELL(f0, 0, 0)->NW = CELL(f, xm, ym)->SE;}
-
-  /*   if(BARRIER(xp,  0)) { CELL(f0, 0, 0)->W  = CELL(f, xm,  0)->W;} */
-  /*   if(BARRIER(xp, ym)) { CELL(f0, 0, 0)->SW = CELL(f, xm,  0)->SW;} */
-  /*   if(BARRIER(xp, yp)) { CELL(f0, 0, 0)->NW = CELL(f, xm,  0)->NW;} */
-  /* } */
 }
 
 kernel void rho(int2 size, global const lattice *f, global float *rho, global float2 *u) {
