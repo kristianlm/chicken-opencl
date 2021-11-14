@@ -44,7 +44,7 @@ kernel void collide(int2 size, float omega, global lattice *f) {
   lattice F = f[i];
   float rho = Rho(&F);
   float2 u = (float2)((F.E + F.NE + F.SE - F.W - F.NW - F.SW) / rho,
-                      (F.N + F.NE + F.NW - F.S - F.SE - F.SW) / rho);
+                      (F.S + F.SE + F.SW - F.N - F.NE - F.NW ) / rho);
 
 
   if(x == 1) { // || y == 0 || x == size.x-1 || y == size.y-1) {// y > 120 && y < 130) {
