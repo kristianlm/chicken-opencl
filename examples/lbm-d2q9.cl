@@ -18,7 +18,7 @@ kernel void ripple(int2 size, global const float *src, global float *dst) {
                    TILE(src, +1, 0) +
                    TILE(src, 0, -1) +
                    TILE(src, 0, +1)) / 2) - TILE(dst, 0, 0);
-  TILE(dst, 0, 0) = result * 0.9f;
+  TILE(dst, 0, 0) = result * 0.999f;
 }
 
 kernel void render(int2 size, global const float *src, global uint *image) {
@@ -28,7 +28,7 @@ kernel void render(int2 size, global const float *src, global uint *image) {
   int color = 0xff000000;
   float2 offset = (float2)(TILE(src, -1, 0) - TILE(src, +1, 0),
                            TILE(src, 0, -1) - TILE(src, 0, +1));
-  color |= (int)(fmax(0.5 + offset.x, 0) * 120);
+  color |= (int)(fmin(fmax(.5 + offset.x, 0), 2) * 120);
   
   image[pos.x + pos.y*size.x] = color;
 }

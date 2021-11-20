@@ -91,7 +91,7 @@
   
   (define (maybe-external)
     (when (mouse-button-down? 0)
-      (buffer-write src cq (f32vector 150) offset: (* 4 (+ mx (* w my))))))
+      (buffer-write src cq (f32vector 2) offset: (* 4 (+ mx (* w my))))))
 
   (maybe-external)
 
