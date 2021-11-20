@@ -108,7 +108,7 @@ void equilibrium(float *dest, float ux, float uy, float newrho) {
 
 (let loop ()
   (handle-exceptions
-      e (begin (fmt #t (pretty (condition->list e)))
+      e (begin (fmt #t (pretty (print-error-message e)))
                (set! game-loop (lambda () #f)))
       (game-loop))
   (thread-yield!)
