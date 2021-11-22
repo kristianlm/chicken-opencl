@@ -12,7 +12,7 @@
 (define scale (string->number (caddr (command-line-arguments))))
 (define frame 0)
 (define viscosity 0.1)
-(define sim-steps 16)
+(define sim-steps 1)
 (define paused? #f)
 
 (define device (cadr (values (flatten (map (cut platform-devices <> 'gpu) (platforms))))))
@@ -41,10 +41,11 @@
 
   (set! collide
     (let ((kernel (kernel-create program "collide")))
-      (lambda (w h Ω f)
+      (lambda (w h Ω f b)
         (kernel-arg-set! kernel 0 (u32vector w h))
         (kernel-arg-set! kernel 1 (f32vector Ω))
         (kernel-arg-set! kernel 2 f)
+        (kernel-arg-set! kernel 3 b)
         (kernel-enqueue kernel cq (list w h)))))
 
   (set! stream
@@ -152,25 +153,21 @@
 (let ()
   (rho w h f r u)
   (speed w h f s)
-  (define u_ (buffer-read u cq))
-  (define r_ (buffer-read r cq))
-  (define s_ (buffer-read s cq))
-  (define rlst (f32vector->list r_))
-  (define slst (f32vector->list s_))
-  (set! rmx (+ (foldl max -1e6 rlst) 0.1))
-  (set! rmn (foldl min 1e6 rlst))
 
-  (fmt #t
-   " u" (minmax u) nl
-   " r" (list rmn rmx) nl
-   " s" (list (foldl min 1e6 slst) (foldl max -1e6 slst)) nl)
+  (let ((uix (minmax u))
+        (rix (minmax r)))
+   (fmt #t
+        " float2 u_range = (float2)(" (fmt-join dsp uix ",") ");" nl
+        " float2 rho_range = (float2)(" (fmt-join dsp rix ",") ");" nl)
 
-  (set! rmn 0.9)
-  (set! rmx 1.3))
+   (set! rmn 0.9)
+   (set! rmx 1.3)))
+
+(fmt #t (fmt-join dsp '(1 2 3) ","))
 
 (define (filename) (conc "barrier-" w "x" h ".png"))
-(define (save-file) (with-output-to-file  (filename) (lambda () (write-u8vector (buffer-read b cq)))))
-(define (load-file) (with-input-from-file (filename) (lambda () (buffer-write b cq (read-u8vector)))))
+;;(define (save-file) (with-output-to-file  (filename) (lambda () (write-u8vector (buffer-read b cq)))))
+;;(define (load-file) (with-input-from-file (filename) (lambda () (buffer-write b cq (read-u8vector)))))
 
 (define (save-file) (with-output-to-file (filename) (lambda () (write-png (buffer-read b cq) w h 1))))
 (define (load-file)
@@ -228,6 +225,9 @@
   (when (key-pressed? (char->integer #\S)) (save-file))
   (when (key-pressed? (char->integer #\L)) (load-file))
 
+  (when (key-pressed? (char->integer #\.)) (set! sim-steps (+ sim-steps 1)))
+  (when (key-pressed? (char->integer #\,)) (set! sim-steps (max 1 (- sim-steps 1))))
+
   ;; ==================== simulation ====================
   
   (define (maybe-external)
@@ -243,7 +243,7 @@
     (let loop ((n (if paused? 1 sim-steps)))
       (set! frame (+ frame 1))
       ;;(unless (= n 0) (maybe-external))
-      (collide w h (begin (/ 1 (+ (* 3 viscosity) 1)) 1.9) f)
+      (collide w h 1.9 f b) ;; (/ 1 (+ (* 3 viscosity) 1))
       (let ((tmp f)) (stream w h f f0 b) (set! f f0) (set! f0 tmp))
       (when (> n 1) (loop (+ n -1)))))
 
@@ -266,12 +266,26 @@
          (ff0 (buffer-read f0 cq bytes: (* 4 9) byte-offset: (* 4 9 (+ mx (* w my))))))
     (draw-lattice ff0)    (draw-text (fmt #f "old" ) 90 (+ (* scale h) 30) 10 #xffffffff)
     (draw-lattice ff 420) (draw-text (fmt #f "new " (ü ff)) 430 (+ (* scale h) 30) 10 #xffffffff)
-    (draw-text (conc "fps " (fps) " f" frame " " mx " " my) 1 (* scale h) 20 #xff0000ff))
+    (draw-text (conc "fps " (fps) " f" frame " " mx " " my " steps" sim-steps) 1 (* scale h) 20 #xff0000ff))
 
-  (visualize w h rmn rmx 1000 f b image)
+  (visualize w h rmn rmx 100 f b image)
   (let ((u32 (buffer-read image cq)))
     (if (< 250 (remainder (current-milliseconds) 500)) (u32vector-set! u32 (+ mx (* w my)) #xff00ffff))
     (mypixels w h u32)))
 
-(print "DONE!")
+(begin
+  (let ()
+    (rho w h f r u)
+    (speed w h f s)
+
+    (let ((uix (minmax u))
+          (rix (minmax r)))
+      (fmt #t
+           " float2 u_range = (float2)(" (fmt-join dsp uix ",") ");" nl
+           " float2 rho_range = (float2)(" (fmt-join dsp rix ",") ");" nl)
+
+      (let ((fn (conc "out-" w "x" h "f" frame "_min" uix "_max" rix ".png")))
+        (with-output-to-file fn
+          (lambda () (write-png (u32vector->blob/shared (buffer-read image cq)) w h 4)))
+        (print "wrote " fn)))))
 

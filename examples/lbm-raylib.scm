@@ -98,7 +98,14 @@ void equilibrium(float *dest, float ux, float uy, float newrho) {
 
 (thread-start! (lambda ()
                  (eval ` (import srfi-1 srfi-4 opencl nrepl srfi-18 chicken.gc))
-                 (eval ` (import miscmacros chicken.time fmt chicken.string chicken.port chicken.file.posix))
+                 (eval ` (import srfi-4 opencl fmt clojurian.syntax test srfi-18
+                                 chicken.string
+                                 chicken.port
+                                 chicken.file.posix
+                                 chicken.time
+                                 chicken.condition
+                                 chicken.process-context
+                                 stb-image-write stb-image))
                  (nrepl 1234)))
 
 (define scale 1)

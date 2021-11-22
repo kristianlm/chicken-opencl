@@ -36,17 +36,28 @@ lattice equilibrium(float2 u, float rho) {
   };
 }
 
-kernel void collide(int2 size, float omega, global lattice *f) {
-  uint x = get_global_id(0);
-  uint y = get_global_id(1);
-  if(x >= size.x || y >= size.y) return;
-  uint i = (x + y*size.x);
+#define BAR(barrier, dx, dy) (barrier[(pos.x+(dx)) + (pos.y+(dy))*size.x])
+kernel void collide(int2 size, float omega, global lattice *f, global uchar *barrier) {
+  uint2 pos = (uint2)(get_global_id(0), get_global_id(1));
+  if(pos.x >= size.x || pos.y >= size.y) return;
+  uint i = (pos.x + pos.y*size.x);
   lattice F = f[i];
   float rho = Rho(&F);
   float2 u = (float2)((F.E + F.NE + F.SE - F.W - F.NW - F.SW) / rho,
                       (F.S + F.SE + F.SW - F.N - F.NE - F.NW ) / rho);
 
-  if(x == 1) { // inlet
+
+  if(pos.x > 10 && pos.x < size.x - 10 && pos.y > 10 && pos.y < size.y - 10) {
+    // gradient
+    float2 du = (float2)(
+      BAR(barrier, -1,  0) - BAR(barrier, +1,  0),
+      BAR(barrier,  0, -1) - BAR(barrier,  0, +1)
+      );
+
+    u += du * 0.0002;
+  }
+  
+  if(false && pos.x == 1) { // inlet
     f[i] = equilibrium((float2)(0.01f, 0.0f), rho);
   }
   else {
@@ -64,17 +75,16 @@ kernel void collide(int2 size, float omega, global lattice *f) {
 }
 
 #define CELL(f, deltax, deltay) (&f[(pos.x+(deltax) + ((pos.y+(deltay))*size.x))])
-#define BARRIER(deltax, deltay) ((   pos.x+(deltax))<=0 || (pos.x+(deltax))>=size.x-1             \
-                                 || (pos.y+(deltay))<=0 || (pos.y+(deltay)) >= size.y-1 \
-                                 || barrier[((pos.x+(deltax)) + (pos.y+(deltay))*size.x)])
+#define BOUNCE(deltax, deltay) ((   pos.x+(deltax))<=0 || (pos.x+(deltax))>=size.x-1             \
+                                || (pos.y+(deltay))<=0 || (pos.y+(deltay)) >= size.y-1)
 kernel void stream(int2 size, global const lattice *f, global lattice *f0, global uchar *barrier) {
   int2 pos = (int2)(get_global_id(0), get_global_id(1));
   if(pos.x >= size.x || pos.y >= size.y) return;
 
-  if(BARRIER(0, 0)) {
-    *CELL(f0, 0, 0) = *CELL(f, 0, 0);
-    return;
-  }
+  // if(BARRIER(0, 0)) {
+  //   *CELL(f0, 0, 0) = *CELL(f, 0, 0);
+  //   return;
+  // }
 
   char xp = (pos.x >= size.x-1) ? 0 : +1;
   char xm = (pos.x <=     0   ) ? 0 : -1;
@@ -91,16 +101,18 @@ kernel void stream(int2 size, global const lattice *f, global lattice *f0, globa
   CELL(f0, 0, 0)->NE = CELL(f, xm, yp)->NE;
   CELL(f0, 0, 0)->NW = CELL(f, xp, yp)->NW;
 
+
+  /*=== !!!!!!!!!!!!!!!!!!!!!!!!!!!!       ========= */ return;
   if(pos.x == size.x-2) return; // outlet
 
-  if(BARRIER(xm,  0)) { CELL(f0, 0, 0)->E  = CELL(f, xp,  0)->W;}
-  if(BARRIER( 0, ym)) { CELL(f0, 0, 0)->S  = CELL(f,  0, yp)->N;}
-  if(BARRIER( 0, yp)) { CELL(f0, 0, 0)->N  = CELL(f,  0, ym)->S;}
-  if(BARRIER(xp,  0)) { CELL(f0, 0, 0)->W  = CELL(f, xm,  0)->E;}
-  if(BARRIER(xm, ym)) { CELL(f0, 0, 0)->SE = CELL(f, xp, yp)->NW;}
-  if(BARRIER(xp, ym)) { CELL(f0, 0, 0)->SW = CELL(f, xm, yp)->NE;}
-  if(BARRIER(xm, yp)) { CELL(f0, 0, 0)->NE = CELL(f, xp, ym)->SW;}
-  if(BARRIER(xp, yp)) { CELL(f0, 0, 0)->NW = CELL(f, xm, ym)->SE;}
+  if(BOUNCE(xm,  0)) { CELL(f0, 0, 0)->E  = CELL(f, xp,  0)->W;}
+  if(BOUNCE( 0, ym)) { CELL(f0, 0, 0)->S  = CELL(f,  0, yp)->N;}
+  if(BOUNCE( 0, yp)) { CELL(f0, 0, 0)->N  = CELL(f,  0, ym)->S;}
+  if(BOUNCE(xp,  0)) { CELL(f0, 0, 0)->W  = CELL(f, xm,  0)->E;}
+  if(BOUNCE(xm, ym)) { CELL(f0, 0, 0)->SE = CELL(f, xp, yp)->NW;}
+  if(BOUNCE(xp, ym)) { CELL(f0, 0, 0)->SW = CELL(f, xm, yp)->NE;}
+  if(BOUNCE(xm, yp)) { CELL(f0, 0, 0)->NE = CELL(f, xp, ym)->SW;}
+  if(BOUNCE(xp, yp)) { CELL(f0, 0, 0)->NW = CELL(f, xm, ym)->SE;}
 }
 
 kernel void rho(int2 size, global const lattice *f, global float *rho, global float2 *u) {
@@ -166,27 +178,47 @@ kernel void visualize(int2 size, float2 r_range, float sscale,
                       global const lattice *f, global const uchar *barrier, global uint *image) {
   int2 pos = (int2)(get_global_id(0), get_global_id(1));
   if(pos.x >= size.x || pos.y >= size.y) return;
-  lattice F = f[pos.x + size.x*pos.y];
+  lattice F = *CELL(f, 0, 0);
   float rho = Rho(&F);
   float2 u = (float2)((F.E + F.NE + F.SE - F.W - F.NW - F.SW),
                       (F.N + F.NE + F.NW - F.S - F.SE - F.SW)) / rho;
-  //float u = u2.x + u2.y;
 
-  float b = barrier[pos.x + size.x*pos.y];
-  int color = 0xff000000;
 
-  if(b) {
-    color |= 0xa0a0a0;
-  } else {
-    color |= (min(255, ((int)(255.0f*(rho-r_range.s0)/(r_range.s1 - r_range.s0)))))<<16;
-    // color |= (min(255, ((int)(255.0f*(rho/4.0f)))));
+  float2 u_range = (float2)(-0.004,0.1);
+  float2 rho_range = (float2)(0.99,1.13);
 
-    if(u.x > 0) {
-      color |= min(255, ((int)(u.x*sscale)))<<8;
-    } else {
-      color |= min(255, ((int)(-u.x*sscale)))<<0;
-    }
-  }
+  int4 rgb = (int4)(
+    255.0f * (u.x - u_range.x) / (u_range.y - u_range.x),
+    255.0f * (u.y - u_range.x) / (u_range.y - u_range.x),
+    255.0f * (rho - rho_range.x) / (rho_range.y - rho_range.x),
+    255);
 
-  image[pos.x + pos.y*size.x] = color;
+  lattice
+    A = *CELL(f, -1,  0),
+    B = *CELL(f, +1,  0),
+    C = *CELL(f,  0, +1),
+    D = *CELL(f,  0, -1);
+  float2 rhod = (float2)(fabs(Rho(&A) - Rho(&B)),
+                         fabs(Rho(&C) - Rho(&D)));
+  rhod.x = rhod.x + rhod.y;
+  rhod *= 30000;
+  rhod = exp(rhod);
+  rhod = fmax(rhod, 0.0f);
+  rhod = fmin(rhod, 255.0f);
+  // rgb.b = rhod.x;
+
+  /* u.x = fabs(u.x);// + fabs(u.y); */
+  /* //u = u * 10.0f; */
+  /* //u = exp(u) - 1.0f; */
+  /* u = u*20000.0f; */
+  /* u = fmax(u, 0.0f); */
+  /* u = fmin(u, 255.0f); */
+
+  rgb.g = (int)u.x;
+
+  rgb.r = barrier[pos.x + pos.y*size.x] * 1;
+
+  rgb = max(rgb, 0);
+  rgb = min(rgb, 255);
+  image[pos.x + pos.y*size.x] = (rgb.s0<<0)|(rgb.s1<<8)|(rgb.s2<<16)|(rgb.s3<<24);
 }
