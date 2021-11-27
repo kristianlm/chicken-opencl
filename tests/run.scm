@@ -65,6 +65,13 @@ __kernel void tt(__global uint *A) {
                    1013000030 1013000031 1013000032 1013000033)
         (buffer-read A cq))
 
+  (test
+   "program-build options"
+   #t
+   (cl_program? (program-build (program-create context "
+__kernel void test_options ( __global DATATYPE *out) { out[0] = 1; }
+") device options: "-D DATATYPE=float")))
+
   (test-group
    "datatype conversion"
 

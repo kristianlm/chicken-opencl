@@ -718,12 +718,12 @@ if(type == CL_MEM_OBJECT_PIPE)           return (\"pipe\");
 (define program-build-log (program-build-info/string (foreign-value "CL_PROGRAM_BUILD_LOG" int)))
 (define program-build-options (program-build-info/string (foreign-value "CL_PROGRAM_BUILD_OPTIONS" int)))
 
-(define (program-build program devices)
+(define (program-build program devices #!key (options ""))
   (if (pair? devices) (error "TODO: support multiple devices"))
   (let* ((device devices)
-         (status ((foreign-lambda* int ((cl_program program) (u8vector devices))
-                                   "return(clBuildProgram(*program, 1, (cl_device_id*)devices, NULL, NULL, NULL));")
-                  program (cl_device-blob device))))
+         (status ((foreign-lambda* int ((cl_program program) (u8vector devices) (c-string options))
+                                   "return(clBuildProgram(*program, 1, (cl_device_id*)devices, options, NULL, NULL));")
+                  program (cl_device-blob device) options)))
 
     (if (= status (foreign-value "CL_BUILD_PROGRAM_FAILURE" int))
         (error (conc "program-build: build-program-failure\n"
