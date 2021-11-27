@@ -193,12 +193,15 @@ Create or release a OpenCL with
 source code as a string. Note that the returned `program` must be
 built before it can be used to create kernels.
 
-    [procedure] (program-build program devices) => program
+    [procedure] (program-build program devices #!key options) => program
 
 `devices` must be a valid `cl_device`. Unfortunately, only a single
 device is currently supported. If the build process fails, an error is
 signaled with the content of `(program-build-log program)` which will
 hopefully contain useful compiler errors.
+
+If supplied, `options` must be a string as specified in
+[clBuildProgram](https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/clBuildProgram.html).
 
     [procedure] (program-build-log program) => string
     [procedure] (program-build-options program) => string
