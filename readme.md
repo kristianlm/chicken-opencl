@@ -225,12 +225,15 @@ arguments pointers.
 The type of the kernel argument (ie. `float2`) must match the srfi-4
 vector type (ie. `(f32vector 1 1)`). It is unfortunately not possible
 to enforce checks for this. The srfi-4 vector's length must match the
-kernel argument. For example, the arguments to `__kernel foo(long4 a, float *result)` could be initialized like this:
+kernel argument. For example, the arguments to `__kernel foo(long4 a,
+float *result)` could be initialized like this:
 
 ```scheme
 (kernel-arg-set! kernel 0 (s64vector 1 2 3 4))
 (kernel-arg-set! kernel 1 (buffer-create (* 4 1000) ctx type: 'f32))
 ```
+
+I don't know if you must call this for all arguments each time.
 
     [procedure] (kernel-enqueue kernel cq global-work-sizes #!key event wait global-work-offsets local-work-sizes) => (or cl_event #f)
 
@@ -250,7 +253,7 @@ Unlike most of the other procedures, `kernel-enqueue` is non-blocking
 and may return before `kernel` is finished executing. If `event` is
 supplied and is `#t` or a `cl_event`, the returned `event` can be used
 to query the kernel execution status. If `event` is not supplied,
-`kernel-enqueue` returnes `#f`.
+`kernel-enqueue` returns `#f`.
 
 ### Events
 
