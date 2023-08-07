@@ -3,7 +3,7 @@
 (define device (car (flatten (map platform-devices (platforms)))))
 (define context (context-create device))
 (define cq (command-queue-create context device))
-(define buffer (buffer-create cq (f32vector 1 2 3 4 5)))
+(define buffer (buffer-create (f32vector 1 2 3 4 5) cq))
 (define program (program-build (program-create context "
 __kernel void plus(__global float *array, float term) {
   array[get_global_id(0)] += term;
